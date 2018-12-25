@@ -1,0 +1,293 @@
+<!DOCTYPE>
+<html>
+<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+<title>XV Homepage</title>
+<div>
+    <div>
+        <input type="text" id="keyword">
+        <input type="button" id="search_btn" value="搜索">
+        <input type="button" id="reset_btn" value="清除搜索">
+    </div>
+    <div>
+        <form enctype='multipart/form-data' action="/cgi-bin/LocalVideoUpload.exe" method="post">
+            <input type="file" name='pics' multiple>
+            <input type="submit" value="上传文件">
+        </form>
+    </div>
+    <div>
+        <input type="button" id="update_cover" value="刷新缩略图(后台)">
+        <input type="button" id="update_vinfo" value="刷新视频信息">
+        <input type="button" id="stop_all" value="停止所有播放">
+        <input type="button" id="random_video" value="随机播放">
+        <input type="button" id="sort_by_time" value="日期降序排列">
+        <input type="button" id="sort_by_random" value="随机排序">
+    </div>
+</div>
+
+<div id="total_info">
+    
+</div>
+
+<div id="board">
+
+</div>
+
+<script src="/js/jquery.js"></script>
+<script>
+    let flist;
+    let fsize;
+    let last_played=-1
+
+    function getNameByID(vid) {
+        return flist[vid].name
+    }
+
+    function getIDByName(vname) {
+        $.each(flist,function(idx,obj){
+            if(vname==obj.name) return idx
+        })
+    }
+
+    function GetVideoSizeByID(vid) {
+        let sz=flist[vid].size
+        let val=sz
+        let unit='B'
+        if(sz>1024) {
+            unit='K'
+            val/=1024
+        }
+        if(sz>1024*1024) {
+            unit='M'
+            val/=1024
+        }
+        return String(Math.ceil(val))+unit
+    }
+
+    function GetTimeStrByID(vid) {
+        return flist[vid].time;
+    }
+
+    function fillVideo(vid) {
+       let name=getNameByID(vid)
+       $("#video_source").attr('src',"http://"+document.domain+":9000/OutSideVideo/"+name+".mp4")
+       $("#player").get(0).load()
+       $("#player").get(0).play()
+    }
+
+    function extendToPlayer(vid) {
+        let name=getNameByID(vid)
+        let realname=decodeURI(name)
+        $("#vid_"+String(vid)).empty()
+        $("#vid_"+String(vid)).append(`<p><video id='video_playing' src='${flist[vid].video}' controls autoplay></video></p>`+
+            "<p><font color='blue'>Playing: "+realname+"</font></p>")
+        $("#video_playing").on('loadedmetadata',function(){
+            let video_playing=$("#video_playing")
+            if(video_playing.attr('adjusted')!="yes") {
+                if(video_playing.get(0).videoWidth<1024 || 
+                video_playing.get(0).videoHeight<768) {
+                    console.log("video_playing: width="+String(video_playing.get(0).videoWidth)+" height:"+String(video_playing.get(0).videoHeight))
+                    video_playing.attr('width',1024)
+                    video_playing.attr('height',768)
+                    video_playing.attr('adjusted','yes')
+                    video_playing.get(0).load()
+                }
+            }
+        })
+    }
+
+    function resetToInfo(vid) {
+        let name=getNameByID(vid)
+        let realname=decodeURI(name)
+        $("#vid_"+String(vid)).empty()
+        let tmp=$("<p></p>")
+            let tmplink=$("<a></a>")
+            tmplink.attr('onclick',`switchPlayer(${vid})`)
+                let tmpImg=$("<img>")
+                tmpImg.attr('src',flist[vid].cover)
+            tmplink.append(tmpImg)
+        tmp.append(tmplink)
+        $("#vid_"+String(vid)).append(tmp)
+        $("#vid_"+String(vid)).append("<p>"+realname+" 文件大小:"+GetVideoSizeByID(vid)+" 修改日期:"+GetTimeStrByID(vid)+"</p>")
+    }
+
+    function switchPlayer(vid) {
+        if(last_played>=0) resetToInfo(last_played)
+        last_played=vid
+        extendToPlayer(vid)
+    }
+
+    function addToBoard(vid) {
+        let name=getNameByID(vid)
+        let realname=decodeURI(name)
+        $("#board").append("<div id='vid_"+String(vid)+"'></div>")
+        resetToInfo(vid)
+    }
+
+    function updateTotal(size) {
+        $("#total_info").empty()
+        $("#total_info").append("<p> Totally "+String(size)+" results.</p>")
+    }
+
+    function updateVideoInfo() {
+        $.post("/list",function(data){
+            fsize=0
+            index=0
+            flist=data['files']
+            $.each(flist,function(idx,obj){
+                addToBoard(idx)
+                fsize++;
+            })
+            updateTotal(fsize)
+        },'json').fail(function(err){
+            console.log("Failed.")
+            console.log(err)
+        })
+    }
+
+    $("#search_btn").click(function(){
+        let keyword=$("#keyword").val()
+        let lsize=0
+        $("#board").empty()
+        $.each(flist,function(idx,obj){
+            let realname=decodeURI(obj.name)
+            if(realname.indexOf(keyword)!=-1) {
+                addToBoard(idx)
+                lsize++
+            }
+        })
+        updateTotal(lsize)
+    })
+
+    $("#reset_btn").click(function(){
+        $("#keyword").val("")
+        $("#board").empty()
+        $.each(flist,function(idx,obj){
+            addToBoard(idx)
+        })
+        updateTotal(fsize)
+    })
+
+    $("#update_cover").click(function(){
+        $("#board").empty()
+        $("#total_info").empty()
+        $("#total_info").append("<p>Prepare to update cover...</p>")
+
+        let ws=new WebSocket(`ws://${location.host}`,'xviewer')
+        ws.onopen=()=>{
+            console.log('websocket: onopen')
+            $("#total_info").html("<p>Connected to server.</p>")
+        }
+        ws.onmessage=(e)=>{
+            console.log(e.data)
+            let j=JSON.parse(e.data)
+            if(j.code==1) {
+                if(j.done==j.total) {
+                    $("#total_info").html("<p>All cover updated.</p>")
+                } else {
+                    $("#total_info").html(`<p>Updating cover ${j.done} of ${j.total} (${(j.done/j.total*100).toFixed(2)}%)... </p>`)
+                }
+            } else if(j.code==0) {
+                ws.close()
+                $("#total_info").html("<p>Cover updated successfully.</p>")
+                updateVideoInfo()
+            }
+        }
+        ws.onerror=(e)=>{
+            ws.close()
+
+            console.log('websocket error: ')
+            console.log(e)
+            
+            updateVideoInfo()
+        }
+
+        $.post("/update_cover",(data)=>{
+            console.log('Task started.' + data)
+        }).fail((err)=>{
+            ws.close()
+
+            console.log('unable to start : ')
+            console.log(err)
+            
+            updateVideoInfo()
+        })
+    })
+
+    $("#update_vinfo").click(function(){
+        $("#update_total").empty() // what is this...?
+        $("#board").empty()
+        updateVideoInfo()
+    })
+
+    $("#stop_all").click(function(){
+        if(last_played>=0) resetToInfo(last_played)
+        last_played=-1
+    })
+
+    $("#random_video").click(function(){
+        let target=Math.ceil(Math.random()*fsize)
+        window.location.hash="#vid_"+String(target)
+        switchPlayer(target)
+    })
+
+    $("#sort_by_time").click(function(){
+        let arr=new Array()
+        $.each(flist,function(idx,obj){
+            let xobj={}
+            xobj["id"]=idx
+            xobj["tstamp"]=obj.timestamp
+            arr.push(xobj)
+        })
+        arr.sort(function(x,y){
+            if(x.tstamp<y.tstamp) {
+                return 1
+            } else if(x.tstamp>y.tstamp) {
+                return -1
+            } else {
+                return 0
+            }
+        })
+        $("#board").empty()
+        $.each(arr,function(pidx,pr){
+            console.log("id="+pr.id+" data:"+GetTimeStrByID(pr.id))
+            addToBoard(pr.id)
+        })
+    })
+
+    $("#sort_by_random").click(function(){
+        let output=new Array(fsize)
+        let left=fsize
+        $.each(flist,function(idx,obj){
+            if(left<fsize/8) {
+                for(let i=0;i<fsize;i++) {
+                    if(typeof(output[i])=="undefined") {
+                        console.log("Save "+idx+" to "+i)
+                        output[i]=idx
+                        left--;
+                        break;
+                    }
+                }
+            } else {
+                while(true) {
+                    let nidx=Math.ceil(Math.random()*fsize)
+                    if(nidx>=fsize) continue;
+                    if(typeof(output[nidx])=="undefined") {
+                        console.log("Save "+idx+" to "+nidx)
+                        output[nidx]=idx
+                        left--
+                        break;
+                    }
+                }
+            }
+        })
+        $("#board").empty()
+        $.each(output,function(idx,vid){
+            console.log("id="+vid)
+            addToBoard(vid)
+        })
+    })
+
+    updateVideoInfo()
+</script>
+
+</html>
