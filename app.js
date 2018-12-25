@@ -6,12 +6,15 @@ const spawn=require('child_process').spawn
 
 const websocket=require('websocket')
 
-/////////// CONFIGURE ///////////
+// -------------- CONFIGURE --------------
+const LISTEN_PORT = 9889
+
 const ROOT_DIR="F:\\faaq\\OutSideVideo"
+
 // Spawn concurrency control. Set to INFINITY to ignore this limit.
 const MAX_SPAWN=8 
 
-/////////// END OF CONFIGURE ///////////
+// ---------- END OF CONFIGURE ------------
 
 function CollectData(files,res) {
     let pArr=new Array
@@ -50,10 +53,6 @@ function CollectData(files,res) {
     console.log("End of CollectData")
 }
 
-function NewSpawn(resolve,files,fullname,filename) {
-    
-}
-
 function UpdateCover(res) {
     res.writeHead(200,{
         'Content-Type':'text/plain',
@@ -70,7 +69,6 @@ function UpdateCover(res) {
         }
     
         if(files && files.length) {
-            let pArr=new Array
             let done=0
             let index=0
             let running=0
@@ -176,7 +174,7 @@ let hs = http.createServer((req,res)=>{
             if(stats && stats.isFile()) {
                 res.writeHead(200,{
                     'Content-Type':'image/png',
-                    'Cache-Control':'max-age=120'
+                    'Cache-Control':'max-age=180'
                 })
                 fs.createReadStream(path.join(ROOT_DIR,'/cover',filename)).pipe(res)
             } else {
@@ -234,7 +232,7 @@ let hs = http.createServer((req,res)=>{
     }
 })
 
-hs.listen(9889)
+hs.listen(LISTEN_PORT)
 
 let ws=new websocket.server({
     httpServer : hs,
