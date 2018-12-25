@@ -16,41 +16,62 @@ const MAX_SPAWN=8
 
 // ---------- END OF CONFIGURE ------------
 
-function CollectData(files,res) {
+function CollectData(which_dir,files,top_resolve,top_reject) {
+    console.log(`CollectData: ${which_dir}`)
     let pArr=new Array
     files.forEach((val)=>{
-        if(path.extname(val)==".mp4") {
-            console.log("Handling: " + val)
-            pArr.push((()=>{
-                return new Promise((resolve,reject)=>{
-                    fs.stat(path.join(ROOT_DIR,val),(err,stat)=>{
-                        if(err) {
-                            return reject('Unable to read stat: ' + val + ": " + err)
-                        }
+        console.log("Handling: " + val)
+        pArr.push((()=>{
+            return new Promise((resolve,reject)=>{
+                fs.stat(path.join(ROOT_DIR,which_dir,val),(err,stat)=>{
+                    if(err) {
+                        return reject('Unable to read stat: ' + val + ": " + err)
+                    }
+                    if(stat.isFile() && path.extname(val)==".mp4") {
+                        let coverURL=path.join("/cover",which_dir,`${path.basename(val,'.mp4')}.png`).split(path.sep).join('/')
+                        let videoURL=path.join("/video",which_dir,val).split(path.sep).join('/')
                         return resolve({
                             name:encodeURI(path.basename(val,'.mp4')),
                             size:stat.size,
                             time:stat.mtime.toISOString().split('T')[0],
                             timestamp:parseInt(stat.mtimeMs/1000),
-                            cover:encodeURI('/cover/'+path.basename(val,'.mp4')+'.png'),
-                            video:encodeURI('/video/'+val)
+                            cover:encodeURI(coverURL),
+                            video:encodeURI(videoURL)
                         })
-                    })
+                    } else if(stat.isDirectory() && val!="cover") {
+                        fs.readdir(path.join(ROOT_DIR,which_dir,val),(err,next_files)=>{
+                            if(err) {
+                                return reject('Unable to read step dir:' + val)
+                            }
+
+                            CollectData(path.join(which_dir,val),next_files,resolve,reject)
+                        })
+                    } else {
+                        console.log(`RESOLVE: unknown ${val} -> null`)
+                        return resolve(null)
+                    }
                 })
-            })())
-        }
+            })
+        })())
     })
 
     Promise.all(pArr).then((results)=>{
-        console.log("In promise.all")
-        res.writeHead(200,{"Content-Type":"text/plain"})
-        res.end(JSON.stringify({files:results}))
+        results=results.filter((val)=>{
+            return val!=null
+        })
+        for(let i=0;i<results.length;i++) {
+            if(results[i] instanceof Array) {
+                results[i].forEach((val)=>{
+                    results.push(val)
+                })
+                results.splice(i,1)
+                i--
+            }
+        }
+        return top_resolve(results)
     }).catch((reason)=>{
-        res.writeHead(500,"Server Error")
-        res.end(reason.toString())
+        return top_reject(reason)
     })
-
-    console.log("End of CollectData")
 }
 
 function UpdateCover(res) {
@@ -101,6 +122,8 @@ function UpdateCover(res) {
                                         SendJSON({code:1,done:done,total:files.length,name:filename})
                                         return resolve()
                                     })
+                                // } else if(stats.isDirectory() && filename!="cover") { // TODO
+
                                 } else {
                                     done=done+1
                                     console.log("Skipped: " + filename)
@@ -157,7 +180,19 @@ let hs = http.createServer((req,res)=>{
                 return
             }
 
-            CollectData(files,res)
+            new Promise((resolve,reject)=>{
+                CollectData("",files,resolve,reject)
+            }).then((results)=>{
+                console.log("In promise.all")
+                res.writeHead(200,{"Content-Type":"text/plain"})
+                res.end(JSON.stringify({files:results.filter((val)=>{
+                    return val!=null
+                })}))
+            }).catch((reason)=>{
+                res.writeHead(500,"Server Error")
+                res.end(reason.toString())
+            })
+
             console.log("End of request")
         })
     } else if(obj.pathname=="/update_cover") {
