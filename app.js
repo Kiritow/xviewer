@@ -73,7 +73,33 @@ function CollectData(which_dir,files,top_resolve,top_reject) {
         return top_reject(reason)
     })
 }
+/*
+function StepReadDir(which_dir) {
+    return new Promise((resolve,reject)=>{
+        fs.readdir(path.join(ROOT_DIR,which_dir),(err,files)=>{
+            if(err) {
+                return reject(err)
+            }
 
+            for(let i=0;i<files.length;i++) {
+                fs.stat(path.join(ROOT_DIR,which_dir,files[i]),(err,stats)=>{
+                    if(stats.isDirectory()) {
+                        StepReadDir(path.join(which_dir,files[i])).then((result)=>{
+                            result.forEach((val)=>{
+                                files.push(v)
+                            })
+
+                            return resolve(files)
+                        }).catch((reason)=>{
+                            return reject(reason)
+                        })
+                    }
+                })
+            }
+        })
+    })
+}
+*/
 function UpdateCover(res) {
     res.writeHead(200,{
         'Content-Type':'text/plain',
@@ -122,8 +148,6 @@ function UpdateCover(res) {
                                         SendJSON({code:1,done:done,total:files.length,name:filename})
                                         return resolve()
                                     })
-                                // } else if(stats.isDirectory() && filename!="cover") { // TODO
-
                                 } else {
                                     done=done+1
                                     console.log("Skipped: " + filename)
@@ -218,7 +242,10 @@ let hs = http.createServer((req,res)=>{
             }
         })
     } else if(obj.pathname.startsWith("/video/")) {
-        let videoname=path.basename(decodeURI(obj.pathname))
+        let videoseg=decodeURI(obj.pathname).split("/")
+        videoseg.shift()
+        videoseg.shift()
+        let videoname=videoseg.join(path.sep)
         console.log("VIDEO NAME: " + videoname)
         fs.stat(path.join(ROOT_DIR,videoname),(err,stats)=>{
             if(err) {
