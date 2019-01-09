@@ -3,10 +3,14 @@ const http=require('http')
 const url=require('url')
 const path=require('path')
 const spawn=require('child_process').spawn
+const crypto=require('crypto')
+const promisify=require('util').promisify
 
 const websocket=require('websocket')
 
-// -------------- CONFIGURE --------------
+const XViewerDatabase = require('./dbop')
+
+// -------------- Configuration ---------------
 const LISTEN_PORT = 9889
 
 const ROOT_DIR="F:\\faaq\\OutSideVideo"
@@ -14,7 +18,58 @@ const ROOT_DIR="F:\\faaq\\OutSideVideo"
 // Spawn concurrency control. Set to INFINITY to ignore this limit.
 const MAX_SPAWN=8 
 
-// ---------- END OF CONFIGURE ------------
+// ---------- End of configuration ------------
+
+const XVIEWER_VERSION = JSON.parse(fs.readFileSync("package.json")).version
+const db=new XViewerDatabase()
+
+async function InitDB() {
+    // Sqlite3 SQL is not similar to mysql. Pay attention.
+
+    // TODO, FIXME
+    // table `objects` may vary between versions.
+    let row=await db.get("select count(*) as n from sqlite_master where type='table' and tbl_name='objects'")
+    if(row.n!=1) {
+        await db.exec('create table objects (id varchar(255) primary key, filename varchar(255) not null)')
+    }
+}
+
+function GetFileHash(filepath) {
+    return new Promise((resolve)=>{
+        let hash=crypto.createHash('sha256')
+        let input=fs.createReadStream(filepath)
+        input.on('data',(data)=>{
+            hash.update(data)
+        })
+        input.on('end',()=>{
+            return resolve(hash.digest('hex'))
+        })
+    })
+}
+
+async function CheckSingleObject(objname) {
+    let filepath=path.join(ROOT_DIR,"objects",objname)
+    let stats=await promisify(fs.stat)(filepath)
+    let hashcode=await GetFileHash(filepath)
+    if(objname!=hashcode) {
+        console.log(`Renaming Object: ${objname} --> ${hashcode}`)
+        await promisify(db.exec)('insert into objects values (?,?) ',hashcode,objname)
+        await promisify(fs.rename)(filepath,path.join(ROOT_DIR,"objects",hashcode))
+    }
+}
+
+function CheckObjects() {
+    return new Promise( (resolve,reject)=>{
+        fs.readdir(path.join(ROOT_DIR,"objects"),(err,files)=>{
+            if(err) return reject(err)
+            let pArr=new Array
+            files.forEach((val)=>{
+                pArr.push(CheckSingleObject(val))
+            })
+            Promise.all(pArr).then(()=>resolve()).catch((e)=>reject(e))
+        })
+    })
+}
 
 function CollectData(which_dir,files,top_resolve,top_reject) {
     console.log(`CollectData: ${which_dir}`)
@@ -73,33 +128,7 @@ function CollectData(which_dir,files,top_resolve,top_reject) {
         return top_reject(reason)
     })
 }
-/*
-function StepReadDir(which_dir) {
-    return new Promise((resolve,reject)=>{
-        fs.readdir(path.join(ROOT_DIR,which_dir),(err,files)=>{
-            if(err) {
-                return reject(err)
-            }
 
-            for(let i=0;i<files.length;i++) {
-                fs.stat(path.join(ROOT_DIR,which_dir,files[i]),(err,stats)=>{
-                    if(stats.isDirectory()) {
-                        StepReadDir(path.join(which_dir,files[i])).then((result)=>{
-                            result.forEach((val)=>{
-                                files.push(v)
-                            })
-
-                            return resolve(files)
-                        }).catch((reason)=>{
-                            return reject(reason)
-                        })
-                    }
-                })
-            }
-        })
-    })
-}
-*/
 function UpdateCover(res) {
     res.writeHead(200,{
         'Content-Type':'text/plain',
@@ -185,7 +214,7 @@ function UpdateCover(res) {
     })
 }
 
-let hs = http.createServer((req,res)=>{
+function request_handler(req,res) {
     let obj=url.parse(req.url,true)
     //console.log(obj)
     //console.log(req.headers)
@@ -292,40 +321,7 @@ let hs = http.createServer((req,res)=>{
             }
         })
     }
-})
-
-hs.listen(LISTEN_PORT)
-
-let ws=new websocket.server({
-    httpServer : hs,
-    autoAcceptConnections : false
-})
-
-let clients=new Array
-
-ws.on('request',(request)=>{
-    try {
-        let conn=request.accept('xviewer',request.origin)
-        console.log('New websocket connection.')
-        clients.push(conn)
-        conn.on('close',(reasonCode,desc)=>{
-            console.log(`websocket closed. (${reasonCode}) ${desc}`)
-            try {
-                clients.forEach((val,idx)=>{
-                    if(val==conn) {
-                        console.log("Removing ws connection from list.")
-                        val.close()
-                        clients.splice(idx,1)
-                        throw new Error('END OF LOOP')
-                    }
-                })
-            } catch (e) {}
-        })
-        conn.on('message',(data)=>{}) // Ignore client data
-    } catch (e) {
-        console.log('WARN: Exception: ' + e)
-    }
-})
+}
 
 function SendJSON(jsonstr) {
     let j=JSON.stringify(jsonstr)
@@ -333,3 +329,46 @@ function SendJSON(jsonstr) {
         conn.sendUTF(j)
     })
 }
+
+async function main() {
+    console.log("Checking database...")
+    await InitDB()
+    console.log("Checking objects...")
+    await CheckObjects()
+
+    console.log("Starting server...")
+    let hs=http.createServer(request_handler)
+    hs.listen(LISTEN_PORT)
+    let ws=new websocket.server({
+        httpServer : hs,
+        autoAcceptConnections : false
+    })
+
+    let clients=new Array
+
+    ws.on('request',(request)=>{
+        try {
+            let conn=request.accept('xviewer',request.origin)
+            console.log('New websocket connection.')
+            clients.push(conn)
+            conn.on('close',(reasonCode,desc)=>{
+                console.log(`websocket closed. (${reasonCode}) ${desc}`)
+                try {
+                    clients.forEach((val,idx)=>{
+                        if(val==conn) {
+                            console.log("Removing ws connection from list.")
+                            val.close()
+                            clients.splice(idx,1)
+                            throw new Error('END OF LOOP')
+                        }
+                    })
+                } catch (e) {}
+            })
+            conn.on('message',(data)=>{}) // Ignore client data
+        } catch (e) {
+            console.log('WARN: Exception: ' + e)
+        }
+    })
+}
+
+main()
