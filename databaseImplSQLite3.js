@@ -9,18 +9,19 @@ class XViewerDatabase {
         return this.database
     }
 
-    get(sql,para) {
+    get() {
+        let obj=this
         return new Promise((resolve,reject)=>{
-            this.database.get(sql,para,(err,row)=>{
+            obj.getdb().get(...arguments,(err,row)=>{
                 if(err) reject(err)
                 else resolve(row)
             })
         })
     }
 
-    exec(sql) {
+    exec() {
         return new Promise((resolve,reject)=>{
-            this.database.exec(sql,(err)=>{
+            this.getdb().exec(...arguments,(xobj,err)=>{
                 if(err) reject(err)
                 else resolve()
             })

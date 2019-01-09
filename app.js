@@ -8,7 +8,7 @@ const promisify=require('util').promisify
 
 const websocket=require('websocket')
 
-const XViewerDatabase = require('./dbop')
+const Database = require('./database')
 
 // -------------- Configuration ---------------
 const LISTEN_PORT = 9889
@@ -18,10 +18,12 @@ const ROOT_DIR="F:\\faaq\\OutSideVideo"
 // Spawn concurrency control. Set to INFINITY to ignore this limit.
 const MAX_SPAWN=8 
 
+const DatabaseProvider = require('./databaseImplSQLite3')
+
 // ---------- End of configuration ------------
 
 const XVIEWER_VERSION = JSON.parse(fs.readFileSync("package.json")).version
-const db=new XViewerDatabase()
+const db=new Database(new DatabaseProvider())
 
 async function InitDB() {
     // Sqlite3 SQL is not similar to mysql. Pay attention.
@@ -53,7 +55,7 @@ async function CheckSingleObject(objname) {
     let hashcode=await GetFileHash(filepath)
     if(objname!=hashcode) {
         console.log(`Renaming Object: ${objname} --> ${hashcode}`)
-        await promisify(db.exec)('insert into objects values (?,?) ',hashcode,objname)
+        await db.exec('insert into objects values (?,?) ',[hashcode,objname])
         await promisify(fs.rename)(filepath,path.join(ROOT_DIR,"objects",hashcode))
     }
 }

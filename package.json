@@ -4,7 +4,7 @@
   "description": "X Viewer",
   "main": "app.js",
   "dependencies": {
-    "sqlite3": "^4.0.4",
+    "sql.js": "^0.5.0",
     "websocket": "^1.0.28"
   },
   "devDependencies": {},
