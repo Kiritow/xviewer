@@ -18,7 +18,7 @@ const ROOT_DIR="F:\\faaq\\OutSideVideo"
 // Spawn concurrency control. Set to INFINITY to ignore this limit.
 const MAX_SPAWN=8 
 
-const DatabaseProvider = require('./databaseImplSQLite3')
+const DatabaseProvider = require('./database_MySQL')
 
 // ---------- End of configuration ------------
 
@@ -26,13 +26,11 @@ const XVIEWER_VERSION = JSON.parse(fs.readFileSync("package.json")).version
 const db=new Database(new DatabaseProvider())
 
 async function InitDB() {
-    // Sqlite3 SQL is not similar to mysql. Pay attention.
-
     // TODO, FIXME
     // table `objects` may vary between versions.
-    let row=await db.get("select count(*) as n from sqlite_master where type='table' and tbl_name='objects'")
-    if(row.n!=1) {
-        await db.exec('create table objects (id varchar(255) primary key, filename varchar(255) not null)')
+    if(!await db.isTableExists("objects")) {
+        console.log("table not exists. creating...")
+        await db.createTable('objects',"id varchar(255) primary key, filename varchar(255) not null")
     }
 }
 
@@ -54,21 +52,37 @@ async function CheckSingleObject(objname) {
     let stats=await promisify(fs.stat)(filepath)
     let hashcode=await GetFileHash(filepath)
     if(objname!=hashcode) {
-        console.log(`Renaming Object: ${objname} --> ${hashcode}`)
-        await db.exec('insert into objects values (?,?) ',[hashcode,objname])
-        await promisify(fs.rename)(filepath,path.join(ROOT_DIR,"objects",hashcode))
+        try {
+            await db.addObject(hashcode,objname)
+            console.log(`Renaming Object: ${objname} --> ${hashcode}`)
+            await promisify(fs.rename)(filepath,path.join(ROOT_DIR,"objects",hashcode))
+        } catch (e) {
+            if(e.code && e.code=="ER_DUP_ENTRY") {
+                // Primary key duplicated, which means we have already had this file.
+                // Then we should just skip it. (leave the original file on the disk.)
+                console.log(`Skipping object: ${objname}`)
+            } else {
+                throw e // something wrong
+            }
+        }
+        
     }
 }
 
 function CheckObjects() {
     return new Promise( (resolve,reject)=>{
         fs.readdir(path.join(ROOT_DIR,"objects"),(err,files)=>{
+            console.log(`${files.length} files found.`)
             if(err) return reject(err)
             let pArr=new Array
             files.forEach((val)=>{
                 pArr.push(CheckSingleObject(val))
             })
-            Promise.all(pArr).then(()=>resolve()).catch((e)=>reject(e))
+            Promise.all(pArr).then(()=>{
+                resolve()
+            }).catch((e)=>{
+                reject(e)
+            })
         })
     })
 }
@@ -336,7 +350,9 @@ async function main() {
     console.log("Checking database...")
     await InitDB()
     console.log("Checking objects...")
+    let _tmchkObjBefore=new Date()
     await CheckObjects()
+    console.log(`[Done] Object checking finishes in ${(new Date()-_tmchkObjBefore)/1000}s`)
 
     console.log("Starting server...")
     let hs=http.createServer(request_handler)
@@ -373,4 +389,10 @@ async function main() {
     })
 }
 
-main()
+main().then(()=>{
+    console.log("[Done] Server started.")
+}).catch((err)=>{
+    console.log(`Exception caught: ${err}`)
+    console.log("Shutting down server...")
+    db.close()
+})

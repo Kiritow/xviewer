@@ -1,4 +1,8 @@
 node_modules/
+config/
 *.exe
 
 *.db
+
+# This is just for test purpose.
+test.js
