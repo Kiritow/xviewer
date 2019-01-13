@@ -1,7 +1,16 @@
+# Node stuff
 node_modules/
+
+# VSCode stuff
+.vscode/
+
+# Database configs. Don't commit them to git.
 config/
+
+# Binary files.
 *.exe
 
+# The database itself.
 *.db
 
 # This is just for test purpose.

@@ -34,52 +34,25 @@
 
 <script src="/js/jquery.js"></script>
 <script>
-    let flist;
-    let fsize;
+    let flist=new Array
     let last_played=-1
 
-    function getNameByID(vid) {
-        return flist[vid].name
-    }
-
-    function getIDByName(vname) {
-        $.each(flist,function(idx,obj){
-            if(vname==obj.name) return idx
-        })
-    }
-
-    function GetVideoSizeByID(vid) {
-        let sz=flist[vid].size
-        let val=sz
-        let unit='B'
-        if(sz>1024) {
-            unit='K'
-            val/=1024
+    function GetSizeStr(size) {
+        if(size>=1024*1024) {
+            return `${Math.ceil(size/1024/1024)}M`
+        } else if(size>=1024) {
+            return `${Math.ceil(size/1024)}K`
+        } else {
+            return `${size}B`
         }
-        if(sz>1024*1024) {
-            unit='M'
-            val/=1024
-        }
-        return String(Math.ceil(val))+unit
     }
 
-    function GetTimeStrByID(vid) {
-        return flist[vid].time;
-    }
-
-    function fillVideo(vid) {
-       let name=getNameByID(vid)
-       $("#video_source").attr('src',"http://"+document.domain+":9000/OutSideVideo/"+name+".mp4")
-       $("#player").get(0).load()
-       $("#player").get(0).play()
-    }
-
-    function extendToPlayer(vid) {
-        let name=getNameByID(vid)
-        let realname=decodeURI(name)
-        $("#vid_"+String(vid)).empty()
-        $("#vid_"+String(vid)).append(`<p><video id='video_playing' src='${flist[vid].video}' controls autoplay></video></p>`+
-            "<p><font color='blue'>Playing: "+realname+"</font></p>")
+    function extendToPlayer(idx) {
+        let realname=decodeURI(flist[idx].fname)
+        let obj=$(`#idx_${idx}`)
+        obj.empty()
+        obj.append(`<p><video id='video_playing' src='/video/${flist[idx].id}' controls autoplay></video></p>
+            <p><font color='blue'>Playing: ${realname} </font></p>`)
         $("#video_playing").on('loadedmetadata',function(){
             let video_playing=$("#video_playing")
             if(video_playing.attr('adjusted')!="yes") {
@@ -95,49 +68,45 @@
         })
     }
 
-    function resetToInfo(vid) {
-        let name=getNameByID(vid)
-        let realname=decodeURI(name)
-        $("#vid_"+String(vid)).empty()
+    function resetToInfo(idx) {
+        let realname=decodeURI(flist[idx].fname)
+        let obj=$(`#idx_${idx}`)
+        obj.empty()
         let tmp=$("<p></p>")
             let tmplink=$("<a></a>")
-            tmplink.attr('onclick',`switchPlayer(${vid})`)
+            tmplink.attr('onclick',`switchPlayer(${idx})`)
                 let tmpImg=$("<img>")
-                tmpImg.attr('src',flist[vid].cover)
+                tmpImg.attr('src',`/cover/${flist[idx].cid}`)
             tmplink.append(tmpImg)
         tmp.append(tmplink)
-        $("#vid_"+String(vid)).append(tmp)
-        $("#vid_"+String(vid)).append("<p>"+realname+" 文件大小:"+GetVideoSizeByID(vid)+" 修改日期:"+GetTimeStrByID(vid)+"</p>")
+        obj.append(tmp)
+        obj.append(`<p>${realname} 文件大小: ${GetSizeStr(flist[idx].fsize)} 修改日期: ${flist[idx].mtime} </p>`)
     }
 
-    function switchPlayer(vid) {
+    function switchPlayer(idx) {
         if(last_played>=0) resetToInfo(last_played)
-        last_played=vid
-        extendToPlayer(vid)
+        last_played=idx
+        extendToPlayer(idx)
     }
 
-    function addToBoard(vid) {
-        let name=getNameByID(vid)
-        let realname=decodeURI(name)
-        $("#board").append("<div id='vid_"+String(vid)+"'></div>")
-        resetToInfo(vid)
+    function addToBoard(idx) {
+        $("#board").append(`<div id='idx_${idx}'></div>`)
+        resetToInfo(idx)
     }
 
-    function updateTotal(size) {
+    function updateTotalDisplay(size) {
         $("#total_info").empty()
-        $("#total_info").append("<p> Totally "+String(size)+" results.</p>")
+        $("#total_info").append(`<p> Totally ${size} results.</p>`)
     }
 
     function updateVideoInfo() {
         $.post("/list",function(data){
-            fsize=0
-            index=0
-            flist=data['files']
-            $.each(flist,function(idx,obj){
-                addToBoard(idx)
-                fsize++;
-            })
-            updateTotal(fsize)
+            $("#board").empty()
+            flist=data
+            for(let i=0;i<flist.length;i++) {
+                addToBoard(i)
+            }
+            updateTotalDisplay(flist.length)
         },'json').fail(function(err){
             console.log("Failed.")
             console.log(err)
@@ -145,17 +114,17 @@
     }
 
     $("#search_btn").click(function(){
-        let keyword=$("#keyword").val()
+        let keyword=$("#keyword").val().toLowerCase()
         let lsize=0
         $("#board").empty()
         $.each(flist,function(idx,obj){
-            let realname=decodeURI(obj.name)
+            let realname=decodeURI(obj.fname).toLowerCase()
             if(realname.indexOf(keyword)!=-1) {
                 addToBoard(idx)
                 lsize++
             }
         })
-        updateTotal(lsize)
+        updateTotalDisplay(lsize)
     })
 
     $("#reset_btn").click(function(){
@@ -164,7 +133,7 @@
         $.each(flist,function(idx,obj){
             addToBoard(idx)
         })
-        updateTotal(fsize)
+        updateTotalDisplay(fsize)
     })
 
     $("#update_cover").click(function(){
@@ -225,9 +194,16 @@
     })
 
     $("#random_video").click(function(){
-        let target=Math.ceil(Math.random()*fsize)
-        window.location.hash="#vid_"+String(target)
-        switchPlayer(target)
+        if(flist.length>1) {
+            let target=Math.round(Math.random()*(flist.length-1))
+            window.location.hash=`#idx_${target}`
+            switchPlayer(target)
+        } else if(flist.length==1) {
+            window.location.hash=`#idx_0`
+            switchPlayer(0)
+        } else {
+            console.log("Video list is empty. Can't make random play.")
+        }
     })
 
     $("#sort_by_time").click(function(){
