@@ -16,16 +16,24 @@ class Database {
         return this.proxy.isTableExists(tableName)
     }
 
-    async createTable(tableName,ddl) {
-        return this.proxy.createTable(tableName,ddl)
+    async createTables() {
+        return this.proxy.createTables()
     }
 
-    async addObject(objID,objName) {
-        return this.proxy.addObject(objID,objName)
+    async addObject(objID,objName,objMtime,objSize) {
+        return this.proxy.addObject(objID,objName,objMtime,objSize)
+    }
+
+    async addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID) {
+        return this.proxy.addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID)
     }
 
     async getObject(objID) {
         return this.proxy.getObject(objID)
+    }
+
+    async getVideoObjects() {
+        return this.proxy.getVideoObjects()
     }
 }
 

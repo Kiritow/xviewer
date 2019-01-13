@@ -28,10 +28,7 @@ const db=new Database(new DatabaseProvider())
 async function InitDB() {
     // TODO, FIXME
     // table `objects` may vary between versions.
-    if(!await db.isTableExists("objects")) {
-        console.log("table not exists. creating...")
-        await db.createTable('objects',"id varchar(255) primary key, filename varchar(255) not null")
-    }
+    await db.createTables()
 }
 
 function GetFileHash(filepath) {
@@ -47,26 +44,104 @@ function GetFileHash(filepath) {
     })
 }
 
+let CURRENT_SPAWN = 0
+
+// Kind of stupid...
+function NewSpawn(command,parameter) {
+    if(CURRENT_SPAWN < MAX_SPAWN) {
+        ++CURRENT_SPAWN
+        return new Promise((resolve)=>{
+            let child=spawn(command,parameter)
+            child.on('close',function(){
+                --CURRENT_SPAWN
+                return resolve()
+            })
+        })
+    } else {
+        return new Promise((resolve)=>{
+            function this_cb() {
+                if(CURRENT_SPAWN<MAX_SPAWN) {
+                    ++CURRENT_SPAWN
+                    let child=spawn(command,parameter)
+                    child.on('close',function(){
+                        --CURRENT_SPAWN
+                        return resolve()
+                    })
+                } else {
+                    setTimeout(this_cb,1000)
+                }
+            }
+            setTimeout(this_cb,1000)
+        })
+    }
+}
+
+function GenerateCover(filePath,outputPath) {
+    return NewSpawn('bin/ffmpeg.exe',[
+        '-ss',
+        '00:00:05.000',
+        '-i',filePath,
+        '-vframes','1',
+        outputPath,
+        '-y']
+    )
+}
+
 async function CheckSingleObject(objname) {
     let filepath=path.join(ROOT_DIR,"objects",objname)
     let stats=await promisify(fs.stat)(filepath)
     let hashcode=await GetFileHash(filepath)
     if(objname!=hashcode) {
         try {
-            await db.addObject(hashcode,objname)
+            await db.addObject(hashcode,objname,Math.floor(stats.mtimeMs/1000),stats.size)
             console.log(`Renaming Object: ${objname} --> ${hashcode}`)
             await promisify(fs.rename)(filepath,path.join(ROOT_DIR,"objects",hashcode))
         } catch (e) {
             if(e.code && e.code=="ER_DUP_ENTRY") {
                 // Primary key duplicated, which means we have already had this file.
                 // Then we should just skip it. (leave the original file on the disk.)
-                console.log(`Skipping object: ${objname}`)
+                console.log(`Duplicated file: ${objname}`)
             } else {
                 throw e // something wrong
             }
         }
-        
     }
+    return hashcode
+}
+
+async function CheckVideoObject(objname) {
+    let filepath=path.join(ROOT_DIR,"objects",objname)
+    let stats=await promisify(fs.stat)(filepath)
+    let hashcode=await GetFileHash(filepath)
+    if(objname!=hashcode) {
+        try {
+            let coverPath=path.join(ROOT_DIR,"temp",hashcode + ".png")
+            console.log(`Generating Cover: ${objname}`)
+            await GenerateCover(filepath,coverPath)
+            let coverStats=await promisify(fs.stat)(coverPath)
+            let coverhash=await GetFileHash(coverPath)
+            try {
+                await db.addObject(coverhash,path.basename(objname,'.mp4')+'.png',Math.floor(coverStats.mtimeMs/1000),coverStats.size)
+                await promisify(fs.rename)(coverPath,path.join(ROOT_DIR,"objects",coverhash))
+            } catch (e) {
+                if(e.code && e.code=="ER_DUP_ENTRY") {
+                    console.log(`Duplicated cover: ${coverhash}`)
+                } else {
+                    throw e // something wrong
+                }
+            }
+            await db.addVideoObject(hashcode,objname,Math.floor(stats.mtimeMs/1000),stats.size,"local","[]",coverhash)
+            console.log(`Renaming Object: ${objname} --> ${hashcode}`)
+            await promisify(fs.rename)(filepath,path.join(ROOT_DIR,"objects",hashcode))
+        } catch (e) {
+            if(e.code && e.code=="ER_DUP_ENTRY") {
+                console.log(`Duplicated file: ${objname}`)
+            } else {
+                throw e // something wrong
+            }
+        }
+    }
+    return hashcode
 }
 
 function CheckObjects() {
@@ -76,7 +151,10 @@ function CheckObjects() {
             if(err) return reject(err)
             let pArr=new Array
             files.forEach((val)=>{
-                pArr.push(CheckSingleObject(val))
+                let extname=path.extname(val).toLowerCase()
+                if(extname==".mp4" || extname==".vdat" ) {
+                    pArr.push(CheckVideoObject(val))
+                }
             })
             Promise.all(pArr).then(()=>{
                 resolve()
@@ -87,61 +165,11 @@ function CheckObjects() {
     })
 }
 
-function CollectData(which_dir,files,top_resolve,top_reject) {
-    console.log(`CollectData: ${which_dir}`)
-    let pArr=new Array
-    files.forEach((val)=>{
-        console.log("Handling: " + val)
-        pArr.push((()=>{
-            return new Promise((resolve,reject)=>{
-                fs.stat(path.join(ROOT_DIR,which_dir,val),(err,stat)=>{
-                    if(err) {
-                        return reject('Unable to read stat: ' + val + ": " + err)
-                    }
-                    if(stat.isFile() && path.extname(val)==".mp4") {
-                        let coverURL=path.join("/cover",which_dir,`${path.basename(val,'.mp4')}.png`).split(path.sep).join('/')
-                        let videoURL=path.join("/video",which_dir,val).split(path.sep).join('/')
-                        return resolve({
-                            name:encodeURI(path.basename(val,'.mp4')),
-                            size:stat.size,
-                            time:stat.mtime.toISOString().split('T')[0],
-                            timestamp:parseInt(stat.mtimeMs/1000),
-                            cover:encodeURI(coverURL),
-                            video:encodeURI(videoURL)
-                        })
-                    } else if(stat.isDirectory() && val!="cover") {
-                        fs.readdir(path.join(ROOT_DIR,which_dir,val),(err,next_files)=>{
-                            if(err) {
-                                return reject('Unable to read step dir:' + val)
-                            }
-
-                            CollectData(path.join(which_dir,val),next_files,resolve,reject)
-                        })
-                    } else {
-                        console.log(`RESOLVE: unknown ${val} -> null`)
-                        return resolve(null)
-                    }
-                })
-            })
-        })())
-    })
-
-    Promise.all(pArr).then((results)=>{
-        results=results.filter((val)=>{
-            return val!=null
-        })
-        for(let i=0;i<results.length;i++) {
-            if(results[i] instanceof Array) {
-                results[i].forEach((val)=>{
-                    results.push(val)
-                })
-                results.splice(i,1)
-                i--
-            }
-        }
-        return top_resolve(results)
-    }).catch((reason)=>{
-        return top_reject(reason)
+function CollectData(top_resolve,top_reject) {
+    db.getVideoObjects().then((data)=>{
+        top_resolve(data)
+    }).catch((err)=>{
+        top_reject(err)
     })
 }
 
@@ -242,62 +270,41 @@ function request_handler(req,res) {
         })
         fs.createReadStream('static/index.html').pipe(res)
     } else if(obj.pathname=="/list") {
-        fs.readdir(ROOT_DIR,(err,files)=>{
-            if(err) {
-                res.writeHead(500,"Unable to readdir.")
-                res.end()
-                return
-            }
-
-            new Promise((resolve,reject)=>{
-                CollectData("",files,resolve,reject)
-            }).then((results)=>{
-                console.log("In promise.all")
-                res.writeHead(200,{"Content-Type":"text/plain"})
-                res.end(JSON.stringify({files:results.filter((val)=>{
-                    return val!=null
-                })}))
-            }).catch((reason)=>{
-                res.writeHead(500,"Server Error")
-                res.end(reason.toString())
-            })
-
-            console.log("End of request")
+        new Promise((resolve,reject)=>{
+            CollectData(resolve,reject)
+        }).then((videos)=>{
+            console.log("/list: In promise.all")
+            res.writeHead(200,{"Content-Type":"text/plain"})
+            res.end(JSON.stringify(videos))
+        }).catch((reason)=>{
+            res.writeHead(500,"Server Error")
+            res.end(reason.toString())
         })
     } else if(obj.pathname=="/update_cover") {
-        console.log("About to update cover...")
-        UpdateCover(res)
+        res.writeHead(403,"Operation banned.")
+        res.end("Currently cover update is not supported.")
     } else if(obj.pathname.startsWith("/cover/")) {
-        let filename=path.basename(decodeURI(obj.pathname))
-        console.log("COVER NAME: " + filename)
-        fs.stat(path.join(ROOT_DIR,'/cover',filename),(err,stats)=>{
-            if(err) {
-                res.writeHead(404,"Not Found")
-                res.end()
-            }
-            if(stats && stats.isFile()) {
+        let objID=path.basename(decodeURI(obj.pathname))
+        console.log("FetchCover: " + objID)
+        let objPath=path.join(ROOT_DIR,'objects',objID)
+        fs.stat(objPath,(err,stats)=>{
+            if(!err && stats && stats.isFile()) {
                 res.writeHead(200,{
                     'Content-Type':'image/png',
                     'Cache-Control':'max-age=180'
                 })
-                fs.createReadStream(path.join(ROOT_DIR,'/cover',filename)).pipe(res)
+                fs.createReadStream(objPath).pipe(res)
             } else {
                 res.writeHead(404,"Not Found")
-                res.end()
+                res.end(`Object not found: ${objID}`)
             }
         })
     } else if(obj.pathname.startsWith("/video/")) {
-        let videoseg=decodeURI(obj.pathname).split("/")
-        videoseg.shift()
-        videoseg.shift()
-        let videoname=videoseg.join(path.sep)
-        console.log("VIDEO NAME: " + videoname)
-        fs.stat(path.join(ROOT_DIR,videoname),(err,stats)=>{
-            if(err) {
-                res.writeHead(404,"Not Found")
-                res.end()
-            }
-            if(stats && stats.isFile()) {
+        let objID=path.basename(decodeURI(obj.pathname))
+        console.log("FetchVideo: " + objID)
+        let objPath=path.join(ROOT_DIR,"objects",objID)
+        fs.stat(objPath,(err,stats)=>{
+            if(!err && stats && stats.isFile()) {
                 res.setHeader('Content-Type','video/mpeg4')
                 if(req.headers.range) {
                     let start=0
@@ -313,27 +320,28 @@ function request_handler(req,res) {
                             'Accept-Range':'bytes',
                             'Content-Range':`bytes ${start}-${end}/${stats.size}`
                         })
-                        fs.createReadStream(path.join(ROOT_DIR,videoname),{start,end}).pipe(res)
+                        fs.createReadStream(objPath,{start,end}).pipe(res)
                     }
                 } else {
                     res.writeHeader(200,{'Accept-Range':'bytes'})
-                    fs.createReadStream(path.join(ROOT_DIR,videoname)).pipe(res)
+                    fs.createReadStream(objPath).pipe(res)
                 }
             } else {
                 res.writeHead(404,"Not Found")
-                res.end()
+                res.end(`Object not found: ${objID}`)
             }
         })
     } else {
-        fs.stat(path.join('static',path.normalize(obj.pathname)),(err,stat)=>{
+        let normalPath=path.normalize(obj.pathname)
+        fs.stat(path.join('static',normalPath),(err,stat)=>{
             if(err) {
                 res.writeHead(404,"Not Found")
-                res.end()
+                res.end(`file not found: ${normalPath}`)
             } else if(stat && stat.isFile()) {
-                fs.createReadStream(path.join('static',path.normalize(obj.pathname))).pipe(res)
+                fs.createReadStream(path.join('static',normalPath)).pipe(res)
             } else {
                 res.writeHead(403,"Forbidden")
-                res.end()
+                res.end(`list dir is forbidden: ${normalPath}`)
             }
         })
     }
