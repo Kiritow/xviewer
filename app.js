@@ -7,6 +7,7 @@ const crypto=require('crypto')
 const promisify=require('util').promisify
 
 const websocket=require('websocket')
+const mime=require('mime')
 
 const Database = require('./database')
 
@@ -338,6 +339,7 @@ function request_handler(req,res) {
                 res.writeHead(404,"Not Found")
                 res.end(`file not found: ${normalPath}`)
             } else if(stat && stat.isFile()) {
+                res.setHeader('Content-Type',mime.getType(normalPath))
                 fs.createReadStream(path.join('static',normalPath)).pipe(res)
             } else {
                 res.writeHead(403,"Forbidden")
@@ -355,6 +357,7 @@ function SendJSON(jsonstr) {
 }
 
 async function main() {
+    console.log(`Version: ${XVIEWER_VERSION}`)
     console.log("Checking database...")
     await InitDB()
     console.log("Checking objects...")

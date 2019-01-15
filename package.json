@@ -4,6 +4,7 @@
   "description": "X Viewer",
   "main": "app.js",
   "dependencies": {
+    "mime": "^2.4.0",
     "mysql": "^2.16.0",
     "websocket": "^1.0.28"
   },
