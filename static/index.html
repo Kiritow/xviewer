@@ -23,12 +23,14 @@
                     <input type="button" id="reset_btn" value="清除搜索" v-on:click="clearSearch">
                 </div>
                 <p>
-                    {{vlists.length}}个结果. <span v-if="resultCount>0">展示了{{resultCount}}个结果.</span>
+                    {{vlists.length}}条数据. 
+                    <span v-if="resultCount>0">展示了{{resultCount}}个结果.</span> 
+                    <span v-if="resultCount==0">无搜索结果</span>
                 </p>
             </div>
             <div id="board">
                 <div v-for="(info,index) in vlists" v-bind:id="index">
-                    <div v-bind:id="'info_'+index"  v-show="playing!=index && (keyword.length<1 || info.fname.indexOf(keyword)!=-1)" class="vinfo">
+                    <div v-bind:id="'info_'+index"  v-show="playing!=index && !info.hidden" class="vinfo" v-bind:data-index="index">
                         <a v-on:click="playVideo(index)">
                             <img v-bind:src="'/cover/' + info.cid">
                         </a>
@@ -49,7 +51,7 @@
                     vlists:[],
                     playing:-1,
                     keyword:'',
-                    resultCount:0
+                    resultCount:-1
                 },
                 computed:{
 
@@ -81,18 +83,31 @@
                     },
                     search:function() {
                         console.log(`search: ${this.keyword}`)
-                        this.resultCount=0
-                        let slist=document.querySelectorAll(".vinfo")
-                        for(let i=0;i<slist.length;i++) {
-                            if(getComputedStyle(slist[i],null).display!="none") {
-                                ++this.resultCount
+                        if(this.keyword.length<1) {
+                            this.clearSearch()
+                        } else {
+                            this.resultCount=0
+                            let divlist=document.querySelectorAll('.vinfo')
+                            for(let i=0;i<divlist.length;i++) {
+                                let index=parseInt(divlist[i].getAttribute('data-index'))
+                                if(this.vlists[index].fname.toLowerCase().indexOf(this.keyword.toLowerCase())!=-1) {
+                                    ++this.resultCount
+                                    this.vlists[index].hidden=false
+                                } else {
+                                    this.vlists[index].hidden=true
+                                }
                             }
                         }
                         console.log(`Total=${this.resultCount}`)
                     },
                     clearSearch:function() {
-                        keyword=''
-                        resultCount=0
+                        this.keyword=''
+                        this.resultCount=-1
+
+                        let divlist=document.querySelectorAll('.vinfo')
+                        for(let i=0;i<divlist.length;i++) {
+                            this.vlists[parseInt(divlist[i].getAttribute('data-index'))].hidden=false
+                        }
                     }
                 }
             })
