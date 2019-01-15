@@ -332,6 +332,29 @@ function request_handler(req,res) {
                 res.end(`Object not found: ${objID}`)
             }
         })
+    } else if(obj.pathname=="/video_played") {
+        if(req.method=="POST") {
+            let rawbody=''
+            req.on('data',(chunk)=>{
+                rawbody+=chunk
+            })
+            req.on('end',()=>{
+                let j=JSON.parse(rawbody)
+                console.log(`AddVideoCount: ${j.id}`)
+                db.addVideoWatchByID(j.id).then(()=>{
+                    res.writeHead(200,"OK")
+                    res.end("watch count added.")
+                }).catch((e)=>{
+                    console.log(`AddVideoCount: Error: ${e.toString()}`)
+                    res.writeHead(500,"Database Error")
+                    res.end(e.toString())
+                })
+            })
+        } else {
+            console.log("[WARN] Use POST with /video_played")
+            res.writeHead(405,"Use POST instead.")
+            res.end()
+        }
     } else {
         let normalPath=path.normalize(obj.pathname)
         fs.stat(path.join('static',normalPath),(err,stat)=>{

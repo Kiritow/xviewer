@@ -52,7 +52,7 @@ class DBProviderMySQL {
             pArr.push(this.createSingleTable('create table covers (id varchar(255) primary key, foreign key(id) references objects(id) )'))
         }
         if(!(await this.isTableExists('videos'))) {
-            pArr.push(this.createSingleTable('create table videos (id varchar(255) primary key, coverid varchar(255), uploader varchar(255), tags varchar(255), foreign key(id) references objects(id), foreign key(coverid) references objects(id) )'))
+            pArr.push(this.createSingleTable('create table videos (id varchar(255) primary key, coverid varchar(255), watchcount int, uploader varchar(255), tags varchar(255), foreign key(id) references objects(id), foreign key(coverid) references objects(id) )'))
         }
     }
 
@@ -77,7 +77,7 @@ class DBProviderMySQL {
                     if(err) return reject(err)
                     conn.query('insert into objects(id,filename,mtime,fsize) values (?,?,?,?) ',[objID,objName,objMtime,objSize],(err)=>{
                         if(err) return reject(err)
-                        conn.query('insert into videos(id,coverid,uploader,tags) values (?,?,?,?)',[objID,coverID,uploader,tags],(err)=>{
+                        conn.query('insert into videos(id,coverid,uploader,tags,watchcount) values (?,?,?,?,?)',[objID,coverID,uploader,tags,0],(err)=>{
                             if(err) return reject(err)
 
                             conn.commit((err)=>{
@@ -123,6 +123,15 @@ class DBProviderMySQL {
                     })
                     return resolve(arr)
                 }
+            })
+        })
+    }
+
+    addVideoWatchByID(objID) {
+        return new Promise((resolve,reject)=>{
+            this.pool.query("update videos set watchcount=watchcount+1 where id=?",[objID],(err)=>{
+                if(err) return reject(err)
+                else return resolve()
             })
         })
     }

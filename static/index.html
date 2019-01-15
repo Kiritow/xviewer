@@ -27,6 +27,9 @@
                     <span v-if="resultCount>0">展示了{{resultCount}}个结果.</span> 
                     <span v-if="resultCount==0">无搜索结果</span>
                 </p>
+                <p v-show="servermsg.length>0">
+                    {{servermsg}}
+                </p>
             </div>
             <div id="board">
                 <div v-for="(info,index) in vlists" v-bind:id="index">
@@ -38,7 +41,7 @@
                     </div>
                     <div v-bind:id="'vid_'+index" v-if="playing==index">
                         <video v-bind:src="'/video/' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay></video>
-                        <p><span class='playing'>Playing: {{info.fname}}</span></p>
+                        <p><span class='playing'>正在播放: {{info.fname}}</span></p>
                     </div>
                 </div>
             </div>
@@ -51,13 +54,17 @@
                     vlists:[],
                     playing:-1,
                     keyword:'',
-                    resultCount:-1
+                    resultCount:-1,
+                    servermsg:''
                 },
                 computed:{
 
                 },
                 methods:{
                     playVideo:function(index) {
+                        $.post("/video_played",JSON.stringify({
+                            id:this.vlists[index].id
+                        }))
                         console.log(`Play video: ${index}`)
                         this.playing=index
                     },

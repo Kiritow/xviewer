@@ -35,6 +35,10 @@ class Database {
     async getVideoObjects() {
         return this.proxy.getVideoObjects()
     }
+
+    async addVideoWatchByID(objID) {
+        return this.proxy.addVideoWatchByID(objID)
+    }
 }
 
 module.exports=Database
