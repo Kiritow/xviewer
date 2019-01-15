@@ -135,6 +135,64 @@ class DBProviderMySQL {
             })
         })
     }
+
+    getConnection() {
+        return new Promise((resolve,reject)=>{
+            this.pool.getConnection((err,conn)=>{
+                if(err) return reject(err)
+                else return resolve(conn)
+            })
+        })
+    }
+
+    beginTransaction(conn) {
+        return new Promise((resolve,reject)=>{
+            conn.beginTransaction((err)=>{
+                if(err) return reject(err)
+                else return resolve()
+            })
+        })
+    }
+
+    commitTransaction(conn) {
+        return new Promise((resolve,reject)=>{
+            conn.commit((err)=>{
+                if(err) return reject(err)
+                else return resolve()
+            })
+        })
+    }
+
+    rawQuery(conn,sql,opts) {
+        return new Promise((resolve,reject)=>{
+            conn.query(sql,opts,(err,res)=>{
+                if(err) return reject(err)
+                else return resolve(res)
+            })
+        })
+    }
+
+    async removeVideoObject(objID) {
+        let conn=await this.getConnection()
+        try {
+            await this.beginTransaction(conn)
+            let result=await this.rawQuery(conn,'select coverid from videos where id=?',[objID])
+            await this.rawQuery(conn,'delete from videos where id=?',[objID])
+            await this.rawQuery(conn,'delete from objects where id=?',[result[0].coverid])
+            await this.rawQuery(conn,'delete from objects where id=?',[objID])
+            await this.commitTransaction(conn)
+        } catch (e) {
+            console.log(`Fatal Connection Eror: ${e.toString()}. Destroying single connection.`)
+            conn.destroy()
+            throw e // re-throw it
+        }
+
+        try {
+            this.pool.releaseConnection(conn)
+        } catch (e) {
+            console.log(`Unable to release connection: ${e.toString()}`)
+        }
+    }
 }
 
 module.exports=DBProviderMySQL

@@ -39,6 +39,11 @@ class Database {
     async addVideoWatchByID(objID) {
         return this.proxy.addVideoWatchByID(objID)
     }
+
+    // This function should also remove cover and their objects.
+    async removeVideoObject(objID) {
+        return this.proxy.removeVideoObject(objID)
+    }
 }
 
 module.exports=Database

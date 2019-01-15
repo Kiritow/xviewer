@@ -174,89 +174,51 @@ function CollectData(top_resolve,top_reject) {
     })
 }
 
-function UpdateCover(res) {
-    res.writeHead(200,{
-        'Content-Type':'text/plain',
-        'Cache-Control':'no-cache',
-        'Connection':'close'
-    })
-    res.end("Update cover task scheduled.")
+async function RollbackSingleVideo(info) {
+    let isExist=true
+    try {
+        // If file not exists, an error is thrown.
+        await promisify(fs.access)(path.join(ROOT_DIR,"objects",info.fname))
+    } catch (e) {
+        if(e.code=="ENOENT") isExist=false
+        else throw e // Re-Throw it
+    }
 
-    fs.readdir(ROOT_DIR,(err,files)=>{
-        if(err) {
-            console.log("Failed to readdir.")
-            SendJSON({code:-1,msg:"Failed to readdir."})
-            return 
+    if(isExist) {
+        console.log(`Same name file detected. Not changed: ${info.id} --X--> ${info.fname}`)
+    } else {
+        try {
+            await db.removeVideoObject(info.id)
+        } catch (e) {
+            console.log(`DB operation failed (suppressed) ${e.toString()} Not changed: ${info.id} --X--> ${info.fname}`)
+            return
         }
-    
-        if(files && files.length) {
-            let done=0
-            let index=0
-            let running=0
-            new Promise((resolve,reject)=>{
-                function next() {
-                    while(running<MAX_SPAWN && index<files.length) {
-                        ++running
-                        new Promise((resolve,reject)=>{
-                            let filename=files[index]
-                            index++
-                            let fullname=path.join(ROOT_DIR,filename)
-                            fs.stat(fullname,(err,stats)=>{
-                                if(err) {
-                                    return reject("Failed to stat:" + fullname)
-                                }
-    
-                                if(stats.isFile() && path.extname(filename,".mp4")) {
-                                    console.log('COVER UPDATE: '+filename)
-                                    let child=spawn('bin/ffmpeg.exe',[
-                                        '-ss',
-                                        '00:00:05.000',
-                                        '-i',fullname,
-                                        '-vframes','1',
-                                        path.join(ROOT_DIR,'/cover',path.basename(filename,'.mp4')+'.png'),
-                                        '-y']
-                                    )
-                                    child.on('close',function(code){
-                                        done=done+1
-                                        console.log("Done: " + filename)
-                                        SendJSON({code:1,done:done,total:files.length,name:filename})
-                                        return resolve()
-                                    })
-                                } else {
-                                    done=done+1
-                                    console.log("Skipped: " + filename)
-                                    SendJSON({code:1,done:done,total:files.length,name:filename})
-                                    return resolve()
-                                }
-                            })
-                        }).then(()=>{
-                            --running
-                            next()
-                        }).catch((err)=>{
-                            --running
-                            console.log("FAILED: Unable to update cover: ")
-                            console.log(err)
-                            next()
-                        })
-                    } // End of while
 
-                    if(running==0) {
-                        return resolve()
-                    }
-                }// End of function next
-
-                next()
-            }).then(()=>{
-                console.log('Success: Update finished.')
-                SendJSON({code:0,msg:"success"})
-            }).catch((reason)=>{
-                console.log('Failed: ' + reason.toString())
-                SendJSON({code:-1,msg:reason.toString()})
-            })
-        } else {
-            SendJSON({code:0,msg:"No file found."})
+        try {
+            await promisify(fs.rename)(path.join(ROOT_DIR,"objects",info.id),path.join(ROOT_DIR,"objects",info.fname))
+            await promisify(fs.unlink)(path.join(ROOT_DIR,"objects",info.cid))
+        } catch (e) {
+            console.log(`File operation failed (suppressed) ${e.toString()}.`)
         }
-    })
+
+        console.log(`Rollback Done: ${info.id} ----> ${info.fname}`)
+    }
+}
+
+// WARNING: This function will delete data from database and rename objects to normal filename.
+async function RollbackVideos() {
+    console.log("[WARN] About to rollback video objects...")
+    try {
+        let objs=await db.getVideoObjects()
+        let pArr=new Array
+        for(let i=0;i<objs.length;i++) {
+            pArr.push(RollbackSingleVideo(objs[i]))
+        }
+        await Promise.all(pArr)
+        console.log("[Done] Video objects rollback finished.")
+    } catch (e) {
+        console.log(`Error: ${e}`)
+    }
 }
 
 function request_handler(req,res) {
@@ -351,7 +313,21 @@ function request_handler(req,res) {
                 })
             })
         } else {
-            console.log("[WARN] Use POST with /video_played")
+            console.log(`[WARN] Use ${req.method} with /video_played`)
+            res.writeHead(405,"Use POST instead.")
+            res.end()
+        }
+    } else if(obj.pathname=="/rollback_videos") {
+        if(req.method=="POST") {
+            RollbackVideos().then(()=>{
+                res.writeHead(200,"OK")
+                res.end("Rollback Video Operation Finished.")
+            }).catch((e)=>{
+                res.writeHead(500,"Operation Exception")
+                res.end(`Rollback Video Operation Failed: ${e.toString()}`)
+            })
+        } else {
+            console.log(`[WARN] Use ${req.method} with /rollback_videos`)
             res.writeHead(405,"Use POST instead.")
             res.end()
         }
@@ -372,13 +348,6 @@ function request_handler(req,res) {
     }
 }
 
-function SendJSON(jsonstr) {
-    let j=JSON.stringify(jsonstr)
-    clients.forEach((conn)=>{
-        conn.sendUTF(j)
-    })
-}
-
 async function main() {
     console.log(`Version: ${XVIEWER_VERSION}`)
     console.log("Checking database...")
@@ -391,36 +360,6 @@ async function main() {
     console.log("Starting server...")
     let hs=http.createServer(request_handler)
     hs.listen(LISTEN_PORT)
-    let ws=new websocket.server({
-        httpServer : hs,
-        autoAcceptConnections : false
-    })
-
-    let clients=new Array
-
-    ws.on('request',(request)=>{
-        try {
-            let conn=request.accept('xviewer',request.origin)
-            console.log('New websocket connection.')
-            clients.push(conn)
-            conn.on('close',(reasonCode,desc)=>{
-                console.log(`websocket closed. (${reasonCode}) ${desc}`)
-                try {
-                    clients.forEach((val,idx)=>{
-                        if(val==conn) {
-                            console.log("Removing ws connection from list.")
-                            val.close()
-                            clients.splice(idx,1)
-                            throw new Error('END OF LOOP')
-                        }
-                    })
-                } catch (e) {}
-            })
-            conn.on('message',(data)=>{}) // Ignore client data
-        } catch (e) {
-            console.log('WARN: Exception: ' + e)
-        }
-    })
 }
 
 main().then(()=>{
