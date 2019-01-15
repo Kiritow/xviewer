@@ -13,5 +13,8 @@ config/
 # The database itself.
 *.db
 
+# The log file
+*.log
+
 # This is just for test purpose.
 test.js

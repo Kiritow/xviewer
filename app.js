@@ -17,11 +17,20 @@ const LISTEN_PORT = 9889
 const ROOT_DIR="F:\\faaq\\OutSideVideo"
 
 // Spawn concurrency control. Set to INFINITY to ignore this limit.
-const MAX_SPAWN=8 
+const MAX_SPAWN=16
 
 const DatabaseProvider = require('./database_MySQL')
 
+const LOG_OUTPUT = "server.log"
+
 // ---------- End of configuration ------------
+
+let _logOutput=fs.createWriteStream(LOG_OUTPUT)
+let _oldLog=console.log
+console.log=function(str) {
+    _oldLog(str)
+    _logOutput.write(str + "\n")
+}
 
 const XVIEWER_VERSION = JSON.parse(fs.readFileSync("package.json")).version
 const db=new Database(new DatabaseProvider())
@@ -149,10 +158,23 @@ async function CheckVideoObject(objname,szAdder) {
     return hashcode
 }
 
+async function CheckVideoObjectProtected(addErr,objname,szAdder) {
+    try {
+        return await CheckVideoObject(objname,szAdder)
+    } catch (e) {
+        addErr()
+        console.log(`suppressed error: ${e.toString()}`)
+    }
+}
+
 function CheckObjects() {
     let szTotal=0
     function szAdder(sz) {
         szTotal+=sz
+    }
+    let errTotal=0
+    function addErr() {
+        ++errTotal
     }
     return new Promise( (resolve,reject)=>{
         fs.readdir(path.join(ROOT_DIR,"objects"),(err,files)=>{
@@ -162,11 +184,12 @@ function CheckObjects() {
             files.forEach((val)=>{
                 let extname=path.extname(val).toLowerCase()
                 if(extname==".mp4" || extname==".vdat" ) {
-                    pArr.push(CheckVideoObject(val,szAdder))
+                    pArr.push(CheckVideoObjectProtected(addErr,val,szAdder))
                 }
             })
             Promise.all(pArr).then(()=>{
-                resolve(szTotal)
+                if(errTotal>0) reject(`At least ${errTotal} error happens while checking video object`)
+                else resolve(szTotal)
             }).catch((e)=>{
                 reject(e)
             })
