@@ -106,6 +106,21 @@ class DBProviderMySQL {
         })
     }
 
+    getObjectIDs() {
+        return new Promise((resolve,reject)=>{
+            this.pool.query("select id from objects",(err,rows)=>{
+                if(err) return reject(err)
+                else {
+                    let arr=new Array
+                    for(let i=0;i<rows.length;i++) {
+                        arr.push(rows[i].id)
+                    }
+                    return resolve(arr)
+                }
+            })
+        })
+    }
+
     getVideoObjects() {
         return new Promise((resolve,reject)=>{
             this.pool.query("select videos.id,coverid,filename,mtime,fsize from videos inner join objects on videos.id=objects.id ",(err,rows)=>{

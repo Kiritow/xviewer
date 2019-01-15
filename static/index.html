@@ -69,10 +69,12 @@
                         this.playing=index
                     },
                     ReadableSize:function(size) {
-                        if(size>=1024*1024) {
-                            return `${Math.ceil(size/1024/1024)}M`
+                        if(size>=1024*1024*1024) {
+                            return `${Number(size/1024/1024/1024).toFixed(2)}G`
+                        } else if(size>=1024*1024) {
+                            return `${Number(size/1024/1024).toFixed(2)}M`
                         } else if(size>=1024) {
-                            return `${Math.ceil(size/1024)}K`
+                            return `${Number(size).toFixed(2)}K`
                         } else {
                             return `${size}B`
                         }

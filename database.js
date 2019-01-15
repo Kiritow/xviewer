@@ -32,6 +32,10 @@ class Database {
         return this.proxy.getObject(objID)
     }
 
+    async getObjectIDs() {
+        return this.proxy.getObjectIDs()
+    }
+
     async getVideoObjects() {
         return this.proxy.getVideoObjects()
     }

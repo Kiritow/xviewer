@@ -110,7 +110,7 @@ async function CheckSingleObject(objname) {
     return hashcode
 }
 
-async function CheckVideoObject(objname) {
+async function CheckVideoObject(objname,szAdder) {
     let filepath=path.join(ROOT_DIR,"objects",objname)
     let stats=await promisify(fs.stat)(filepath)
     let hashcode=await GetFileHash(filepath)
@@ -142,10 +142,18 @@ async function CheckVideoObject(objname) {
             }
         }
     }
+
+    if(szAdder) {
+        szAdder(stats.size)
+    }
     return hashcode
 }
 
 function CheckObjects() {
+    let szTotal=0
+    function szAdder(sz) {
+        szTotal+=sz
+    }
     return new Promise( (resolve,reject)=>{
         fs.readdir(path.join(ROOT_DIR,"objects"),(err,files)=>{
             console.log(`${files.length} files found.`)
@@ -154,16 +162,34 @@ function CheckObjects() {
             files.forEach((val)=>{
                 let extname=path.extname(val).toLowerCase()
                 if(extname==".mp4" || extname==".vdat" ) {
-                    pArr.push(CheckVideoObject(val))
+                    pArr.push(CheckVideoObject(val,szAdder))
                 }
             })
             Promise.all(pArr).then(()=>{
-                resolve()
+                resolve(szTotal)
             }).catch((e)=>{
                 reject(e)
             })
         })
     })
+}
+
+async function CompareSingleObject(id) {
+    try {
+        await promisify(fs.access)(path.join(ROOT_DIR,"objects",id))
+    } catch (e) {
+        console.log(`ObjectMissing: ${id}`)
+        throw e
+    }
+}
+
+async function CompareObjects() {
+    let pArr=new Array
+    let objs=await db.getObjectIDs()
+    for(let i=0;i<objs.length;i++) {
+        pArr.push(CompareSingleObject(objs[i]))
+    }
+    await Promise.all(pArr)
 }
 
 function CollectData(top_resolve,top_reject) {
@@ -348,22 +374,40 @@ function request_handler(req,res) {
     }
 }
 
+function ReadableSize(size) {
+    if(size>=1024*1024*1024) {
+        return `${Number(size/1024/1024/1024).toFixed(2)}G`
+    } else if(size>=1024*1024) {
+        return `${Number(size/1024/1024).toFixed(2)}M`
+    } else if(size>=1024) {
+        return `${Number(size).toFixed(2)}K`
+    } else {
+        return `${size}B`
+    }
+}
+
 async function main() {
-    console.log(`Version: ${XVIEWER_VERSION}`)
-    console.log("Checking database...")
+    console.log("Initializing database...")
     await InitDB()
+    console.log("[Done] Database Initialized.")
     console.log("Checking objects...")
     let _tmchkObjBefore=new Date()
-    await CheckObjects()
-    console.log(`[Done] Object checking finishes in ${(new Date()-_tmchkObjBefore)/1000}s`)
+    let bytes=await CheckObjects()
+    let _tmchkObjDiff=(new Date()-_tmchkObjBefore)/1000
+    console.log(`[Done] Object checking finishes in ${_tmchkObjDiff}s. ${ReadableSize(bytes)} in total. (${ReadableSize(bytes/_tmchkObjDiff)}/s)`)
+    console.log("Comparing database with objects on disk...")
+    await CompareObjects()
+    console.log("[Done] All objects found on disk.")
 
+    console.log(`Backend version: ${XVIEWER_VERSION}`)
     console.log("Starting server...")
     let hs=http.createServer(request_handler)
     hs.listen(LISTEN_PORT)
 }
 
+let _tmServBefore=new Date()
 main().then(()=>{
-    console.log("[Done] Server started.")
+    console.log(`[Done] Server started in ${(new Date()-_tmServBefore)/1000}s.`)
 }).catch((err)=>{
     console.log(`Exception caught: ${err}`)
     console.log("Shutting down server...")
