@@ -40,8 +40,11 @@
                         <p>{{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}}</p>
                     </div>
                     <div v-bind:id="'vid_'+index" v-if="playing==index">
-                        <video v-bind:src="'/video/' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay></video>
+                        <video id="video_playing" v-bind:src="'/video/' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay></video>
                         <p><span class='playing'>正在播放: {{info.fname}}</span></p>
+                        <p>
+                            <input v-for="rate in rates" type="button" v-bind:value="rate + 'x'" v-on:click="changePlayRate(rate)">
+                        </p>
                     </div>
                 </div>
             </div>
@@ -51,6 +54,7 @@
             let app=new Vue({
                 el:"#app",
                 data:{
+                    rates:[0.5,0.75,1,1.25,1.5,2,2.5],
                     vlists:[],
                     playing:-1,
                     keyword:'',
@@ -117,6 +121,10 @@
                         for(let i=0;i<divlist.length;i++) {
                             this.vlists[parseInt(divlist[i].getAttribute('data-index'))].hidden=false
                         }
+                    },
+                    changePlayRate:function(rate) {
+                        console.log(`Playback rate changed to ${rate}`)
+                        document.getElementById("video_playing").playbackRate=rate
                     }
                 }
             })
