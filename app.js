@@ -96,6 +96,7 @@ function GenerateCover(filePath,outputPath) {
 async function CheckVideoObject(objname,szAdder) {
     let filepath=path.join(ROOT_DIR,"objects",objname)
     let stats=await promisify(fs.stat)(filepath)
+    console.log(`Computing hash: ${objname}`)
     let hashcode=await GetFileHash(filepath)
     if(objname!=hashcode) {
         try {
@@ -105,7 +106,7 @@ async function CheckVideoObject(objname,szAdder) {
             let coverStats=await promisify(fs.stat)(coverPath)
             let coverhash=await GetFileHash(coverPath)
             try {
-                await db.addObject(coverhash,path.basename(objname,'.mp4')+'.png',Math.floor(coverStats.mtimeMs/1000),coverStats.size)
+                await db.addObject(coverhash,path.basename(objname,path.extname(objname))+'.png',Math.floor(coverStats.mtimeMs/1000),coverStats.size)
                 await promisify(fs.rename)(coverPath,path.join(ROOT_DIR,"objects",coverhash))
             } catch (e) {
                 if(e.code && (e.code=="ER_DUP_ENTRY" || e.code=="SQLITE_CONSTRAINT") ) {
@@ -157,7 +158,9 @@ function CheckObjects() {
             let pArr=new Array
             files.forEach((val)=>{
                 let extname=path.extname(val).toLowerCase()
-                if(extname==".mp4" || extname==".vdat" ) {
+                if(extname == ".mp4" || extname == ".vdat" ||
+                   extname == ".flv" || extname == ".rmvb" ||
+                   extname == ".mov" || extname == ".mkv") {
                     pArr.push(CheckVideoObjectProtected(addErr,val,szAdder))
                 }
             })
@@ -244,6 +247,49 @@ async function RollbackVideos() {
     }
 }
 
+async function request_video(req,res) {
+    let objID=path.basename(decodeURI(url.parse(req.url,true).pathname))
+    console.log("FetchVideo: " + objID)
+    let objPath=path.join(ROOT_DIR,"objects",objID)
+
+    try {
+        let objInfo=await db.getObject(objID)
+        let mimeType=mime.getType(path.extname(objInfo.filename))
+        if(mimeType==null) mimeType="video/mpeg4"
+        let stats=await promisify(fs.stat)(objPath)
+
+        if(stats && stats.isFile()) {
+            res.setHeader('Content-Type',mimeType)
+            if(req.headers.range) {
+                let start=0
+                let end=stats.size-1
+                let result = req.headers.range.match(/bytes=(\d*)-(\d*)/);
+                if (result) {
+                    if(result[1] && !isNaN(result[1])) start = parseInt(result[1])
+                    if(result[2] && !isNaN(result[2])) end = parseInt(result[2])
+
+                    console.log('A: ' + result[1] + ' B: ' + result[2])
+                    console.log('start: ' + start + ' end: ' + end)
+                    res.writeHeader(206,{
+                        'Accept-Range':'bytes',
+                        'Content-Range':`bytes ${start}-${end}/${stats.size}`
+                    })
+                    fs.createReadStream(objPath,{start,end}).pipe(res)
+                }
+            } else {
+                res.writeHeader(200,{'Accept-Range':'bytes'})
+                fs.createReadStream(objPath).pipe(res)
+            }
+        } else {
+            throw new Error("Object not found.")
+        }
+    } catch (e) {
+        console.log(`Failed to get video object: ${objID}. ${e.toString()}`)
+        res.writeHead(404,"Not Found")
+        res.end(`Object not found: ${objID}. Exception: ${e.toString()}`)
+    }
+}
+
 function request_handler(req,res) {
     let obj=url.parse(req.url,true)
     //console.log(obj)
@@ -286,37 +332,7 @@ function request_handler(req,res) {
             }
         })
     } else if(obj.pathname.startsWith("/video/")) {
-        let objID=path.basename(decodeURI(obj.pathname))
-        console.log("FetchVideo: " + objID)
-        let objPath=path.join(ROOT_DIR,"objects",objID)
-        fs.stat(objPath,(err,stats)=>{
-            if(!err && stats && stats.isFile()) {
-                res.setHeader('Content-Type','video/mpeg4')
-                if(req.headers.range) {
-                    let start=0
-                    let end=stats.size-1
-                    let result = req.headers.range.match(/bytes=(\d*)-(\d*)/);
-                    if (result) {
-                        if(result[1] && !isNaN(result[1])) start = parseInt(result[1])
-                        if(result[2] && !isNaN(result[2])) end = parseInt(result[2])
-
-                        console.log('A: ' + result[1] + ' B: ' + result[2])
-                        console.log('start: ' + start + ' end: ' + end)
-                        res.writeHeader(206,{
-                            'Accept-Range':'bytes',
-                            'Content-Range':`bytes ${start}-${end}/${stats.size}`
-                        })
-                        fs.createReadStream(objPath,{start,end}).pipe(res)
-                    }
-                } else {
-                    res.writeHeader(200,{'Accept-Range':'bytes'})
-                    fs.createReadStream(objPath).pipe(res)
-                }
-            } else {
-                res.writeHead(404,"Not Found")
-                res.end(`Object not found: ${objID}`)
-            }
-        })
+        request_video(req,res)
     } else if(obj.pathname=="/video_played") {
         if(req.method=="POST") {
             let rawbody=''

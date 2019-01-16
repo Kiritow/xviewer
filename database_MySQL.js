@@ -99,8 +99,8 @@ class DBProviderMySQL {
             this.pool.query('select * from objects where id=?',[objID],(err,rows)=>{
                 if(err) return reject(err)
                 else return resolve({
-                    id:rows.id,
-                    filename:rows.filename
+                    id:rows[0].id,
+                    filename:rows[0].filename
                 })
             })
         })
