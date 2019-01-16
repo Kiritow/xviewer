@@ -5,7 +5,7 @@ node_modules/
 .vscode/
 
 # Database configs. Don't commit them to git.
-config/
+config/*.json
 
 # Binary files.
 *.exe

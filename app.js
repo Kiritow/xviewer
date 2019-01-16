@@ -12,17 +12,12 @@ const mime=require('mime')
 const Database = require('./database')
 
 // -------------- Configuration ---------------
-const LISTEN_PORT = 9889
-
-const ROOT_DIR="F:\\faaq\\OutSideVideo"
-
-// Spawn concurrency control. Set to INFINITY to ignore this limit.
-const MAX_SPAWN=16
-
-const DatabaseProvider = require('./database_MySQL')
-
-const LOG_OUTPUT = "server.log"
-
+let _settings=JSON.parse(fs.readFileSync("config/settings.json"))
+const LISTEN_PORT = _settings.port
+const ROOT_DIR = _settings.rootdir
+const MAX_SPAWN = _settings.maxspawn
+const DatabaseProvider = require(_settings.dbprovider)
+const LOG_OUTPUT = _settings.logname
 // ---------- End of configuration ------------
 
 let _logOutput=fs.createWriteStream(LOG_OUTPUT)
@@ -97,28 +92,6 @@ function GenerateCover(filePath,outputPath) {
     )
 }
 
-async function CheckSingleObject(objname) {
-    let filepath=path.join(ROOT_DIR,"objects",objname)
-    let stats=await promisify(fs.stat)(filepath)
-    let hashcode=await GetFileHash(filepath)
-    if(objname!=hashcode) {
-        try {
-            await db.addObject(hashcode,objname,Math.floor(stats.mtimeMs/1000),stats.size)
-            console.log(`Renaming Object: ${objname} --> ${hashcode}`)
-            await promisify(fs.rename)(filepath,path.join(ROOT_DIR,"objects",hashcode))
-        } catch (e) {
-            if(e.code && e.code=="ER_DUP_ENTRY") {
-                // Primary key duplicated, which means we have already had this file.
-                // Then we should just skip it. (leave the original file on the disk.)
-                console.log(`Duplicated file: ${objname}`)
-            } else {
-                throw e // something wrong
-            }
-        }
-    }
-    return hashcode
-}
-
 async function CheckVideoObject(objname,szAdder) {
     let filepath=path.join(ROOT_DIR,"objects",objname)
     let stats=await promisify(fs.stat)(filepath)
@@ -134,7 +107,7 @@ async function CheckVideoObject(objname,szAdder) {
                 await db.addObject(coverhash,path.basename(objname,'.mp4')+'.png',Math.floor(coverStats.mtimeMs/1000),coverStats.size)
                 await promisify(fs.rename)(coverPath,path.join(ROOT_DIR,"objects",coverhash))
             } catch (e) {
-                if(e.code && e.code=="ER_DUP_ENTRY") {
+                if(e.code && (e.code=="ER_DUP_ENTRY" || e.code=="SQLITE_CONSTRAINT") ) {
                     console.log(`Duplicated cover: ${coverhash}`)
                 } else {
                     throw e // something wrong
@@ -144,7 +117,7 @@ async function CheckVideoObject(objname,szAdder) {
             console.log(`Renaming Object: ${objname} --> ${hashcode}`)
             await promisify(fs.rename)(filepath,path.join(ROOT_DIR,"objects",hashcode))
         } catch (e) {
-            if(e.code && e.code=="ER_DUP_ENTRY") {
+            if(e.code && (e.code=="ER_DUP_ENTRY" || e.code=="SQLITE_CONSTRAINT") ) {
                 console.log(`Duplicated file: ${objname}`)
             } else {
                 throw e // something wrong

@@ -1,0 +1,7 @@
+{
+    "port":9889,
+    "rootdir":"xvroot",
+    "maxspawn":16,
+    "dbprovider":"./database_SQLite3",
+    "logname":"server.log"
+}
