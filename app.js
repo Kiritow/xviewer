@@ -26,6 +26,7 @@ console.log=function(str) {
     _oldLog(str)
     _logOutput.write(str + "\n")
 }
+console.log("Logger Initialized.")
 
 const XVIEWER_VERSION = JSON.parse(fs.readFileSync("package.json")).version
 const db=new Database(new DatabaseProvider())
@@ -383,6 +384,10 @@ function ReadableSize(size) {
 }
 
 async function main() {
+    console.log("Initializing disk storage...")
+    await promisify(fs.mkdir)(path.join(ROOT_DIR,"objects"),{recursive:true})
+    await promisify(fs.mkdir)(path.join(ROOT_DIR,"temp"),{recursive:true})
+    console.log("[Done] Storage Initialized.")
     console.log("Initializing database...")
     await InitDB()
     console.log("[Done] Database Initialized.")
@@ -405,7 +410,7 @@ let _tmServBefore=new Date()
 main().then(()=>{
     console.log(`[Done] Server started in ${(new Date()-_tmServBefore)/1000}s.`)
 }).catch((err)=>{
-    console.log(`Exception caught: ${err}`)
+    console.log(`[Fatal] Exception caught: ${err}`)
     console.log("Shutting down server...")
     db.close()
 })
