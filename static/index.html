@@ -20,6 +20,7 @@
             <div id="panel">
                 <div>
                     <input type="text" v-model="keyword" v-on:input="search">
+                    <input type="date" v-model="afterdate" v-on:input="search">
                     <input type="button" id="reset_btn" value="清除搜索" v-on:click="clearSearch">
                 </div>
                 <p>
@@ -58,6 +59,7 @@
                     vlists:[],
                     playing:-1,
                     keyword:'',
+                    afterdate:null,
                     resultCount:-1,
                     servermsg:''
                 },
@@ -96,14 +98,15 @@
                     },
                     search:function() {
                         console.log(`search: ${this.keyword}`)
-                        if(this.keyword.length<1) {
+                        if(this.keyword.length<1 && this.afterdate==null) {
                             this.clearSearch()
                         } else {
                             this.resultCount=0
                             let divlist=document.querySelectorAll('.vinfo')
                             for(let i=0;i<divlist.length;i++) {
                                 let index=parseInt(divlist[i].getAttribute('data-index'))
-                                if(this.vlists[index].fname.toLowerCase().indexOf(this.keyword.toLowerCase())!=-1) {
+                                if(this.vlists[index].fname.toLowerCase().indexOf(this.keyword.toLowerCase())!=-1 &&
+                                    (!this.afterdate || new Date(this.vlists[index].mtime) -new Date(this.afterdate)>=0) ) {
                                     ++this.resultCount
                                     this.vlists[index].hidden=false
                                 } else {
@@ -116,6 +119,7 @@
                     clearSearch:function() {
                         this.keyword=''
                         this.resultCount=-1
+                        this.afterdate=null
 
                         let divlist=document.querySelectorAll('.vinfo')
                         for(let i=0;i<divlist.length;i++) {
