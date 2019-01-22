@@ -68,29 +68,24 @@ class DBProviderMySQL {
     // TODO FIXME
     // Connection may leak if the promise is rejected before reach here.
     // Separate different mysql operations in multiple async functions maybe better?
-    addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID) {
-        return new Promise((resolve,reject)=>{
-            this.pool.getConnection((err,conn)=>{
-                if(err) return reject(err)
-                // insert into objects and videos or not at the same time.
-                conn.beginTransaction((err)=>{
-                    if(err) return reject(err)
-                    conn.query('insert into objects(id,filename,mtime,fsize) values (?,?,?,?) ',[objID,objName,objMtime,objSize],(err)=>{
-                        if(err) return reject(err)
-                        conn.query('insert into videos(id,coverid,uploader,tags,watchcount) values (?,?,?,?,?)',[objID,coverID,uploader,tags,0],(err)=>{
-                            if(err) return reject(err)
+    async addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID) {
+        let conn=await this.getConnection()
+        try {
+            await this.beginTransaction(conn)
+            await this.rawQuery(conn,'insert into objects(id,filename,mtime,fsize) values (?,?,?,?) ',[objID,objName,objMtime,objSize])
+            await this.rawQuery(conn,'insert into videos(id,coverid,uploader,tags,watchcount) values (?,?,?,?,?)',[objID,coverID,uploader,tags,0])
+            await this.commitTransaction(conn)
+        } catch (e) {
+            console.log(`Fatal Connection Eror: ${e.toString()}. Destroying single connection.`)
+            conn.destroy()
+            throw e // re-throw it
+        }
 
-                            conn.commit((err)=>{
-                                if(err) return reject(err)
-
-                                this.pool.releaseConnection(conn)
-                                return resolve()
-                            })
-                        })
-                    })
-                })
-            })
-        })
+        try {
+            this.pool.releaseConnection(conn)
+        } catch (e) {
+            console.log(`Unable to release connection: ${e.toString()}`)
+        }
     }
 
     // If objID not in objects, {id:undefined} will be resolved.
