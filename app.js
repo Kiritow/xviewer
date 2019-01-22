@@ -8,6 +8,7 @@ const promisify=require('util').promisify
 
 const websocket=require('websocket')
 const mime=require('mime')
+const multer=require('multer')
 
 const Database = require('./database')
 
@@ -40,7 +41,8 @@ async function InitDB() {
 function GetFileHash(filepath) {
     return new Promise((resolve)=>{
         let hash=crypto.createHash('sha256')
-        let input=fs.createReadStream(filepath)
+         // Default highWaterMark (or buffer size) is 64K. Change it to 10M dramatically reduces time of reading large files.
+        let input=fs.createReadStream(filepath,{highWaterMark:10*1024*1024})
         input.on('data',(data)=>{
             hash.update(data)
         })
@@ -160,7 +162,8 @@ function CheckObjects() {
                 let extname=path.extname(val).toLowerCase()
                 if(extname == ".mp4" || extname == ".vdat" ||
                    extname == ".flv" || extname == ".rmvb" ||
-                   extname == ".mov" || extname == ".mkv") {
+                   extname == ".mov" || extname == ".mkv" ||
+                   extname == ".avi" || extname == ".wmv" ) {
                     pArr.push(CheckVideoObjectProtected(addErr,val,szAdder))
                 }
             })
@@ -290,6 +293,19 @@ async function request_video(req,res) {
     }
 }
 
+async function request_upload_raw(req,res) {
+    let data=''
+    req.on('data',(chunk)=>{
+        data+=chunk
+    })
+    req.on('end',()=>{
+        console.log(`File received. Length: ${data.length}`)
+        console.log(req)
+        res.writeHead(200,"OK")
+        res.end("File upload finished. But we are not saving it, because it is just a test.")
+    })
+}
+
 function request_handler(req,res) {
     let obj=url.parse(req.url,true)
     //console.log(obj)
@@ -312,9 +328,13 @@ function request_handler(req,res) {
             res.writeHead(500,"Server Error")
             res.end(reason.toString())
         })
-    } else if(obj.pathname=="/update_cover") {
-        res.writeHead(403,"Operation banned.")
-        res.end("Currently cover update is not supported.")
+    } else if(obj.pathname=="/upload_raw") {
+        if(req.method=="POST") {
+            request_upload_raw(req,res)
+        } else {
+            res.writeHead(403,"Use POST instead.")
+            res.end()
+        }
     } else if(obj.pathname.startsWith("/cover/")) {
         let objID=path.basename(decodeURI(obj.pathname))
         console.log("FetchCover: " + objID)
