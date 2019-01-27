@@ -104,8 +104,8 @@ class DatabaseImplSQLite3 {
     async getObject(objID) {
         let row=await this.rawGet('select id,filename from objects where id=?',[objID])
         return {
-            id:rows.id,
-            filename:rows.filename
+            id:row.id,
+            filename:row.filename
         }
     }
 
