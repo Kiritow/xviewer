@@ -52,7 +52,7 @@ class DBProviderMySQL {
             pArr.push(this.createSingleTable('create table covers (id varchar(255) primary key, foreign key(id) references objects(id) )'))
         }
         if(!(await this.isTableExists('videos'))) {
-            pArr.push(this.createSingleTable('create table videos (id varchar(255) primary key, coverid varchar(255), watchcount int, uploader varchar(255), tags varchar(255), foreign key(id) references objects(id), foreign key(coverid) references objects(id) )'))
+            pArr.push(this.createSingleTable('create table videos (id varchar(255) primary key, coverid varchar(255), videotime int, watchcount int, watchtime int, uploader varchar(255), tags varchar(255), foreign key(id) references objects(id), foreign key(coverid) references objects(id) )'))
         }
     }
 
@@ -68,12 +68,12 @@ class DBProviderMySQL {
     // TODO FIXME
     // Connection may leak if the promise is rejected before reach here.
     // Separate different mysql operations in multiple async functions maybe better?
-    async addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID) {
+    async addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID,videoTime) {
         let conn=await this.getConnection()
         try {
             await this.beginTransaction(conn)
             await this.rawQuery(conn,'insert into objects(id,filename,mtime,fsize) values (?,?,?,?) ',[objID,objName,objMtime,objSize])
-            await this.rawQuery(conn,'insert into videos(id,coverid,uploader,tags,watchcount) values (?,?,?,?,?)',[objID,coverID,uploader,tags,0])
+            await this.rawQuery(conn,'insert into videos(id,coverid,videotime,uploader,tags,watchcount) values (?,?,?,?,?,?)',[objID,coverID,videoTime,uploader,tags,0])
             await this.commitTransaction(conn)
         } catch (e) {
             console.log(`Fatal Connection Eror: ${e.toString()}. Destroying single connection.`)
@@ -118,7 +118,7 @@ class DBProviderMySQL {
 
     getVideoObjects() {
         return new Promise((resolve,reject)=>{
-            this.pool.query("select videos.id,coverid,filename,mtime,fsize from videos inner join objects on videos.id=objects.id ",(err,rows)=>{
+            this.pool.query("select videos.id,coverid,filename,mtime,fsize,videotime from videos inner join objects on videos.id=objects.id ",(err,rows)=>{
                 if(err) return reject(err)
                 else {
                     let arr=new Array
@@ -129,6 +129,7 @@ class DBProviderMySQL {
                         j.fname=row.filename
                         j.mtime=new Date(row.mtime*1000)
                         j.fsize=row.fsize
+                        j.vtime=row.videotime
                         arr.push(j)
                     })
                     return resolve(arr)

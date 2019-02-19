@@ -24,8 +24,8 @@ class Database {
         return this.proxy.addObject(objID,objName,objMtime,objSize)
     }
 
-    async addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID) {
-        return this.proxy.addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID)
+    async addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID,videoTime) {
+        return this.proxy.addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID,videoTime)
     }
 
     async getObject(objID) {

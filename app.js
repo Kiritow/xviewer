@@ -55,12 +55,19 @@ function GetFileHash(filepath) {
 let CURRENT_SPAWN = 0
 
 // Kind of stupid...
-function NewSpawn(command,parameter) {
+function NewSpawn(command,parameter,onData,onErrData,onClose) {
     if(CURRENT_SPAWN < MAX_SPAWN) {
         ++CURRENT_SPAWN
         return new Promise((resolve)=>{
             let child=spawn(command,parameter)
+            if(onData) {
+                child.stdout.on('data',onData)
+            }
+            if(onErrData) {
+                child.stderr.on('data',onErrData)
+            }
             child.on('close',function(){
+                if(onClose) onClose()
                 --CURRENT_SPAWN
                 return resolve()
             })
@@ -71,7 +78,14 @@ function NewSpawn(command,parameter) {
                 if(CURRENT_SPAWN<MAX_SPAWN) {
                     ++CURRENT_SPAWN
                     let child=spawn(command,parameter)
+                    if(onData) {
+                        child.stdout.on('data',onData)
+                    }
+                    if(onErrData) {
+                        child.stderr.on('data',onErrData)
+                    }
                     child.on('close',function(){
+                        if(onClose) onClose()
                         --CURRENT_SPAWN
                         return resolve()
                     })
@@ -250,6 +264,28 @@ async function RollbackVideos() {
     }
 }
 
+async function UpdateVideoInfo() {
+    console.log("[Pending] About to update all video info...")
+    try {
+        let objs=await db.getVideoObjects()
+        let pArr=new Array
+        objs.forEach((val)=>{
+            let dataChunk=''
+            let errChunk=''
+            pArr.push(NewSpawn('bin/ffprobe.exe',[path.join(ROOT_DIR,"objects",val.id)],
+            (data)=>{
+                dataChunk+=data
+            },(data)=>{
+                errChunk+=data
+            },()=>{
+
+            }))
+        })
+    } catch (e) {
+        console.log(e)
+    }
+}
+
 async function request_video(req,res) {
     let objID=path.basename(decodeURI(url.parse(req.url,true).pathname))
     console.log("FetchVideo: " + objID)
@@ -271,8 +307,9 @@ async function request_video(req,res) {
                     if(result[1] && !isNaN(result[1])) start = parseInt(result[1])
                     if(result[2] && !isNaN(result[2])) end = parseInt(result[2])
 
-                    console.log('A: ' + result[1] + ' B: ' + result[2])
-                    console.log('start: ' + start + ' end: ' + end)
+                    console.log(`A: ${result[1]} B: ${result[2]}`)
+                    console.log(`start: ${start} end: ${end}`)
+                    console.log(`objPath: ${objPath}`)
                     res.writeHeader(206,{
                         'Accept-Range':'bytes',
                         'Content-Range':`bytes ${start}-${end}/${stats.size}`
@@ -343,7 +380,7 @@ function request_handler(req,res) {
             if(!err && stats && stats.isFile()) {
                 res.writeHead(200,{
                     'Content-Type':'image/png',
-                    'Cache-Control':'max-age=180'
+                    'Cache-Control':'max-age=3600, must-revalidate'
                 })
                 fs.createReadStream(objPath).pipe(res)
             } else {
@@ -377,6 +414,9 @@ function request_handler(req,res) {
             res.end()
         }
     } else if(obj.pathname=="/rollback_videos") {
+        res.writeHead(403,"Forbidden")
+        res.end("Due to core developing, rollback is disabled.")
+        /*
         if(req.method=="POST") {
             RollbackVideos().then(()=>{
                 res.writeHead(200,"OK")
@@ -384,11 +424,28 @@ function request_handler(req,res) {
             }).catch((e)=>{
                 res.writeHead(500,"Operation Exception")
                 res.end(`Rollback Video Operation Failed: ${e.toString()}`)
+                console.log(e)
             })
         } else {
             console.log(`[WARN] Use ${req.method} with /rollback_videos`)
             res.writeHead(405,"Use POST instead.")
-            res.end()
+            res.end("Use POST instead.")
+        }
+        */
+    } else if(obj.pathname=="/update_video_info") {
+        if(req.method=="POST") {
+            UpdateVideoInfo().then(()=>{
+                res.writeHead(200,"OK")
+                res.end("Video info updated.")
+            }).catch((e)=>{
+                res.writeHead(500,"Operation Exception")
+                res.end(`Update video info operation failed: ${e.toString()}`)
+                console.log(e)
+            })
+        } else {
+            console.log(`[WARN] Use ${req.method} with /update_video_info`)
+            res.writeHead(405,"Use POST instead.")
+            res.end("Use POST instead.")
         }
     } else {
         let normalPath=path.normalize(obj.pathname)
