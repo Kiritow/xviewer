@@ -109,7 +109,14 @@ app.post('/getfile', async (req, res) => {
                 throw Error(`Invalid path: ${filepath}`)
             }
             console.log(filepath)
-            let stream = fs.createReadStream(filepath)
+
+            let stream = null
+            if (req.body.range) {
+                stream = fs.createReadStream(filepath, {start: range.start, end: range: end})
+            } else {
+                stream = fs.createReadStream(filepath)
+            }
+
             stream.on('error', (e) => {
                 console.log("Stream error.")
                 console.log(e)

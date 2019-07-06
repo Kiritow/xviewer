@@ -11,7 +11,7 @@ const mime=require('mime')
 const multer=require('multer')
 
 const Database = require('./database')
-const StorageProvider = require('./StorageProvider')
+const StorageProviderClass = require('./StorageProvider')
 
 // -------------- Configuration ---------------
 let _settings=JSON.parse(fs.readFileSync("config/settings.json"))
@@ -22,6 +22,7 @@ const DatabaseProvider = require(_settings.dbprovider)
 const LOG_OUTPUT = _settings.logname
 const REMOTEFS_LIST = _settings.remotefs
 const REMOTEFS_LINKTYPE = _settings.remotefs_linktype
+const StorageProvider = new StorageProviderClass([path.join(ROOT_DIR, "objects")], REMOTEFS_LIST)
 // ---------- End of configuration ------------
 
 let _logOutput=fs.createWriteStream(LOG_OUTPUT)
@@ -292,44 +293,39 @@ async function UpdateVideoInfo() {
 async function request_video(req,res) {
     let objID=path.basename(decodeURI(url.parse(req.url,true).pathname))
     console.log("FetchVideo: " + objID)
-    let objPath=path.join(ROOT_DIR,"objects",objID)
 
     try {
         let objInfo=await db.getObject(objID)
         let mimeType=mime.getType(path.extname(objInfo.filename))
         if(mimeType==null) mimeType="video/mpeg4"
-        let stats=await promisify(fs.stat)(objPath)
+        res.setHeader('Content-Type',mimeType)
 
-        if(stats && stats.isFile()) {
-            res.setHeader('Content-Type',mimeType)
-            if(req.headers.range) {
-                let start=0
-                let end=stats.size-1
-                let result = req.headers.range.match(/bytes=(\d*)-(\d*)/);
-                if (result) {
-                    if(result[1] && !isNaN(result[1])) start = parseInt(result[1])
-                    if(result[2] && !isNaN(result[2])) end = parseInt(result[2])
-
-                    console.log(`A: ${result[1]} B: ${result[2]}`)
-                    console.log(`start: ${start} end: ${end}`)
-                    console.log(`objPath: ${objPath}`)
-                    res.writeHeader(206,{
-                        'Accept-Range':'bytes',
-                        'Content-Range':`bytes ${start}-${end}/${stats.size}`
-                    })
-                    fs.createReadStream(objPath,{start,end}).pipe(res)
-                }
-            } else {
-                res.writeHeader(200,{'Accept-Range':'bytes'})
-                fs.createReadStream(objPath).pipe(res)
-            }
-        } else {
-            throw new Error("Object not found.")
-        }
+        res.writeHeader(200, "OK")
+        StorageProvider.getFileStream(objID).pipe(res).on('error', (e) => {
+            console.log(e)
+        })
     } catch (e) {
-        console.log(`Failed to get video object: ${objID}. ${e.toString()}`)
-        res.writeHead(404,"Not Found")
-        res.end(`Object not found: ${objID}. Exception: ${e.toString()}`)
+        res.writeHead(404, "Not Found")
+        res.end(`Cannot find video: ${objID}`)
+    }
+}
+
+async function request_cover(req, res) {
+    let objID=path.basename(decodeURI(url.parse(req.url,true).pathname))
+    console.log("FetchCover: " + objID)
+
+    try {
+        res.writeHead(200,{
+            'Content-Type':'image/png',
+            'Cache-Control':'max-age=3600, must-revalidate'
+        })
+
+        StorageProvider.getFileStream(objID).pipe(res).on('error', (e) => {
+            console.log(e)
+        })
+    } catch (e) {
+        res.writeHead(404, "Not Found")
+        res.end(`Cannot find cover: ${objID}`)
     }
 }
 
@@ -376,21 +372,7 @@ function request_handler(req,res) {
             res.end()
         }
     } else if(obj.pathname.startsWith("/cover/")) {
-        let objID=path.basename(decodeURI(obj.pathname))
-        console.log("FetchCover: " + objID)
-        let objPath=path.join(ROOT_DIR,'objects',objID)
-        fs.stat(objPath,(err,stats)=>{
-            if(!err && stats && stats.isFile()) {
-                res.writeHead(200,{
-                    'Content-Type':'image/png',
-                    'Cache-Control':'max-age=3600, must-revalidate'
-                })
-                fs.createReadStream(objPath).pipe(res)
-            } else {
-                res.writeHead(404,"Not Found")
-                res.end(`Object not found: ${objID}`)
-            }
-        })
+        request_cover(req, res)
     } else if(obj.pathname.startsWith("/video/")) {
         request_video(req,res)
     } else if(obj.pathname=="/video_played") {

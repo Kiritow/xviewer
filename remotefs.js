@@ -64,6 +64,18 @@ class RemoteFSClient {
             })
         })
     }
+
+    getFileStream(filename, range) {
+        return request({
+            url: url.resolve(this.remotefs_link, "getfile"),
+            method: "POST",
+            body: JSON.stringify({
+                name: filename,
+                skey: this.app_key,
+                range: range
+            })
+        })
+    }
 }
 
 module.exports = RemoteFSClient
