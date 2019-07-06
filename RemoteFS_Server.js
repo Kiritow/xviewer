@@ -9,6 +9,7 @@ const ROOT_DIR = 'D:\\Downloads'
 const APP_SECRET = "test_sec_key"
 const STORAGE_LIMIT = 0
 const STORAGE_SINGLE_LIMIT = 0
+const PUBLIC_IP = "127.0.0.1"
 
 // Upload Key
 class UploadManager {
@@ -52,6 +53,7 @@ app.get("/", (req, res) => {
         version: "v1",
         storageLimit: STORAGE_LIMIT,
         storageSingleLimit: STORAGE_SINGLE_LIMIT,
+        publicIP: PUBLIC_IP
     }
     res.send(JSON.stringify(serverInfo))
 })

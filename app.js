@@ -11,6 +11,7 @@ const mime=require('mime')
 const multer=require('multer')
 
 const Database = require('./database')
+const StorageProvider = require('./StorageProvider')
 
 // -------------- Configuration ---------------
 let _settings=JSON.parse(fs.readFileSync("config/settings.json"))
@@ -19,6 +20,8 @@ const ROOT_DIR = _settings.rootdir
 const MAX_SPAWN = _settings.maxspawn
 const DatabaseProvider = require(_settings.dbprovider)
 const LOG_OUTPUT = _settings.logname
+const REMOTEFS_LIST = _settings.remotefs
+const REMOTEFS_LINKTYPE = _settings.remotefs_linktype
 // ---------- End of configuration ------------
 
 let _logOutput=fs.createWriteStream(LOG_OUTPUT)

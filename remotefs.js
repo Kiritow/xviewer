@@ -7,6 +7,18 @@ class RemoteFSClient {
         this.app_key = app_key
     }
 
+    getInfo() {
+        return new Promise((resolve, reject)=>{
+            request(this.remotefs_link, (err, res, body) => {
+                if (err) {
+                    return reject(err)
+                } else {
+                    return resolve(body)
+                }
+            })
+        })
+    }
+
     getList() {
         return new Promise((resolve, reject)=>{
             request({

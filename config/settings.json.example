@@ -3,5 +3,14 @@
     "rootdir":"xvroot",
     "maxspawn":16,
     "dbprovider":"./database_SQLite3",
-    "logname":"server.log"
+    "logname":"server.log",
+    "proxy": {
+        "ip": "127.0.0.1",
+        "port": 1080
+    },
+    "remotefs": [{
+        "name": "remotefs_1",
+        "skey": "remotefs_1_secret_key"
+    }],
+    "remotefs_linktype": "relay"
 }
