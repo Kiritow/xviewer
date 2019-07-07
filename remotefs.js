@@ -66,7 +66,7 @@ class RemoteFSClient {
     }
 
     getFileStream(filename, range) {
-        return request({
+        let stream = request({
             url: url.resolve(this.remotefs_link, "getfile"),
             method: "POST",
             body: JSON.stringify({
@@ -74,6 +74,10 @@ class RemoteFSClient {
                 skey: this.app_key,
                 range: range
             })
+        })
+        stream.on('error', (e) => {
+            console.log(`remotefs: getFileStream: Error: ${e}`)
+            console.log(e)
         })
     }
 }

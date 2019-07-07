@@ -39,7 +39,7 @@ class StorageProvider {
 
         remoteFsList.forEach((remoteFS)=>{
             pArr.push((async (client)=>{
-                let files = await client.getList()
+                let files = JSON.parse(await client.getList())
                 files.forEach((fname)=>{
                     if(!this.fileMap.has(fname)) {
                         this.fileMap.set(fname, [])

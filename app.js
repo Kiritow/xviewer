@@ -197,7 +197,9 @@ function CheckObjects() {
 
 async function CompareSingleObject(id) {
     try {
-        await promisify(fs.access)(path.join(ROOT_DIR,"objects",id))
+        if(await StorageProvider.locateFile(id) == null) {
+            throw Error(`StorageProvider: File ${id} not found.`)
+        }
     } catch (e) {
         console.log(`ObjectMissing: ${id}`)
         throw e
@@ -305,6 +307,7 @@ async function request_video(req,res) {
             console.log(e)
         })
     } catch (e) {
+        console.log(e)
         res.writeHead(404, "Not Found")
         res.end(`Cannot find video: ${objID}`)
     }
@@ -324,6 +327,7 @@ async function request_cover(req, res) {
             console.log(e)
         })
     } catch (e) {
+        console.log(e)
         res.writeHead(404, "Not Found")
         res.end(`Cannot find cover: ${objID}`)
     }
@@ -474,9 +478,13 @@ async function main() {
     let bytes=await CheckObjects()
     let _tmchkObjDiff=(new Date()-_tmchkObjBefore)/1000
     console.log(`[Done] Object checking finishes in ${_tmchkObjDiff}s. ${ReadableSize(bytes)} in total. (${ReadableSize(bytes/_tmchkObjDiff)}/s)`)
-    console.log("Comparing database with objects on disk...")
+    console.log("Initializing Storage provider...")
+    await StorageProvider.init()
+    console.log("[Done] Storage provider initialized.")
+    console.log("Comparing objects in database with storage provider...")
     await CompareObjects()
     console.log("[Done] All objects found on disk.")
+    
 
     console.log(`Backend version: ${XVIEWER_VERSION}`)
     console.log("Starting server...")
@@ -488,7 +496,8 @@ let _tmServBefore=new Date()
 main().then(()=>{
     console.log(`[Done] Server started in ${(new Date()-_tmServBefore)/1000}s.`)
 }).catch((err)=>{
-    console.log(`[Fatal] Exception caught: ${err}`)
+    console.log(`[Fatal] Exception caught.`)
+    console.log(err)
     console.log("Shutting down server...")
     db.close()
 })

@@ -5,7 +5,7 @@ const express=require('express')
 const uuid=require('uuid')
 const promisify=require('util').promisify
 
-const ROOT_DIR = 'D:\\Downloads'
+const ROOT_DIR = 'D:\\POPR'
 const APP_SECRET = "test_sec_key"
 const STORAGE_LIMIT = 0
 const STORAGE_SINGLE_LIMIT = 0
@@ -76,9 +76,9 @@ async function PostAuth(req, res) {
 
     if(!req.body.skey || req.body.skey != APP_SECRET) {
         res.status(403).send("Invalid auth key.")
-        return False
+        return false
     } else {
-        return True
+        return true
     }
 }
 
@@ -112,7 +112,7 @@ app.post('/getfile', async (req, res) => {
 
             let stream = null
             if (req.body.range) {
-                stream = fs.createReadStream(filepath, {start: range.start, end: range: end})
+                stream = fs.createReadStream(filepath, {start: range.start, end: range.end})
             } else {
                 stream = fs.createReadStream(filepath)
             }
