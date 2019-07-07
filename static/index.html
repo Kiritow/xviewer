@@ -27,6 +27,9 @@
                     {{vlists.length}}条数据. 
                     <span v-if="resultCount>0">展示了{{resultCount}}个结果.</span> 
                     <span v-if="resultCount==0">无搜索结果</span>
+
+                    <input type='button' id='prev_page_btn' value='上一页' v-on:click="goPrevPage">
+                    <input type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
                 </p>
                 <p v-show="servermsg.length>0">
                     {{servermsg}}
@@ -49,6 +52,10 @@
                     </div>
                 </div>
             </div>
+            <div>
+                <input type='button' id='prev_page_btn' value='上一页' v-on:click="goPrevPage">
+                <input type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
+            </div>
         </div>
 
         <script>
@@ -56,7 +63,11 @@
                 el:"#app",
                 data:{
                     rates:[0.5,0.75,1,1.25,1.5,2,2.5],
-                    vlists:[],
+                    alists:[],  // All video
+                    dlists:[],  // Searched result
+                    vlists:[],  // Visual result
+                    showoffset: 0,
+                    showsize: 100,
                     playing:-1,
                     keyword:'',
                     afterdate:null,
@@ -96,23 +107,49 @@
                             }
                         }
                     },
+                    updateVisual:function() {
+                        console.log("update visual")
+                        let tmplst = []
+                        for(let i=this.showoffset;i<this.showoffset + this.showsize && i < this.dlists.length;i++) {
+                            tmplst.push(this.dlists[i])
+                        }
+                        this.vlists = tmplst
+                    },
+                    goPrevPage:function() {
+                        console.log("prev page.")
+                        this.showoffset -= this.showsize
+                        if(this.showoffset<1) {
+                            this.showoffset=0
+                        }
+                        console.log(this.showoffset, this.showsize)
+
+                        this.updateVisual()
+                    },
+                    goNextPage: function() {
+                        console.log("next page.")
+                        if(this.showoffset + this.showsize < this.dlists.length) {
+                            this.showoffset += this.showsize
+                            console.log(this.showoffset, this.showsize)
+                            this.updateVisual()
+                        }
+                    },
                     search:function() {
                         console.log(`search: ${this.keyword}`)
                         if(this.keyword.length<1 && this.afterdate==null) {
                             this.clearSearch()
                         } else {
                             this.resultCount=0
-                            let divlist=document.querySelectorAll('.vinfo')
-                            for(let i=0;i<divlist.length;i++) {
-                                let index=parseInt(divlist[i].getAttribute('data-index'))
-                                if(this.vlists[index].fname.toLowerCase().indexOf(this.keyword.toLowerCase())!=-1 &&
-                                    (!this.afterdate || new Date(this.vlists[index].mtime) -new Date(this.afterdate)>=0) ) {
+                            this.showoffset=0
+                            this.dlists = new Array()
+                            for(let i=0;i<this.alists.length;i++) {
+                                if(this.alists[i].fname.toLowerCase().indexOf(this.keyword.toLowerCase())!=-1 &&
+                                    (!this.afterdate || new Date(this.alists[i].mtime) -new Date(this.afterdate)>=0) ) {
                                     ++this.resultCount
-                                    this.vlists[index].hidden=false
-                                } else {
-                                    this.vlists[index].hidden=true
+                                    this.dlists.push(this.alists[i])
                                 }
                             }
+
+                            this.updateVisual()
                         }
                         console.log(`Total=${this.resultCount}`)
                     },
@@ -120,11 +157,10 @@
                         this.keyword=''
                         this.resultCount=-1
                         this.afterdate=null
+                        this.showoffset = 0
 
-                        let divlist=document.querySelectorAll('.vinfo')
-                        for(let i=0;i<divlist.length;i++) {
-                            this.vlists[parseInt(divlist[i].getAttribute('data-index'))].hidden=false
-                        }
+                        this.dlists = this.alists
+                        this.updateVisual()
                     },
                     changePlayRate:function(rate) {
                         console.log(`Playback rate changed to ${rate}`)
@@ -134,7 +170,11 @@
             })
 
             $.post("/list",(data)=>{
-                app.vlists=data
+                app.alists=data
+                app.dlists=data
+                app.showoffset=0
+                app.showsize=100
+                app.updateVisual()
             },'json').fail((err)=>{
                 console.log(`Failed: ${err}`)
             })
