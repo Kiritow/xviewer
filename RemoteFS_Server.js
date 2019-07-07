@@ -5,7 +5,7 @@ const express=require('express')
 const uuid=require('uuid')
 const promisify=require('util').promisify
 
-const ROOT_DIR = 'D:\\POPR'
+const ROOT_DIR = 'G:\\faaq\\OutSideVideo\\objects'
 const APP_SECRET = "test_sec_key"
 const STORAGE_LIMIT = 0
 const STORAGE_SINGLE_LIMIT = 0
@@ -100,7 +100,7 @@ app.post("/list", async (req, res) => {
 app.post('/getfile', async (req, res) => {
     console.log(`ACCESS /getfile`)
     
-    if(!PostAuth(req, res)) return
+    if(!await PostAuth(req, res)) return
 
     if(req.body.name) {
         try {
@@ -135,7 +135,7 @@ app.post('/getfile', async (req, res) => {
 app.post('/savefile', async (req, res) => {
     console.log(`ACCESS /savefile`)
     
-    if(!PostAuth(req, res)) return
+    if(!await PostAuth(req, res)) return
 
     if(!req.body.name) {
         res.status(400).send("Invalid request.")
