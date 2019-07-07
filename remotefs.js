@@ -79,6 +79,7 @@ class RemoteFSClient {
             console.log(`remotefs: getFileStream: Error: ${e}`)
             console.log(e)
         })
+        return stream
     }
 }
 

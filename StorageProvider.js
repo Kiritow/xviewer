@@ -13,6 +13,7 @@ class StorageProvider {
     async init() {
         let pArr = new Array()
         this.localDirList.forEach((localDir) => {
+            console.log(`LocalDir: ${localDir}`)
             pArr.push(new Promise((resolve, reject)=>{
                 fs.readdir(localDir, (err, files) => {
                     if(err) {
@@ -34,6 +35,7 @@ class StorageProvider {
 
         let remoteFsList = new Array()
         this.remotefsInfoList.forEach((config)=>{
+            console.log(`RemoteFS: ${config.name}`)
             remoteFsList.push(new RemoteFSClient(config.name, config.skey))
         })
 
