@@ -22,6 +22,7 @@
                     <input type="text" v-model="keyword" v-on:input="search">
                     <input type="date" v-model="afterdate" v-on:input="search">
                     <input type="button" id="reset_btn" value="清除搜索" v-on:click="clearSearch">
+                    <input type='button' id='stop_play_header_btn' value='停止播放' v-on:click="stopVideo">
                 </div>
                 <p>
                     {{vlists.length}}条数据. 
@@ -46,6 +47,7 @@
                     <div v-bind:id="'vid_'+index" v-if="playing==index">
                         <video id="video_playing" v-bind:src="'/video/' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay></video>
                         <p><span class='playing'>正在播放: {{info.fname}}</span></p>
+                        <p>{{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}}</p>
                         <p>
                             <input v-for="rate in rates" type="button" v-bind:value="rate + 'x'" v-on:click="changePlayRate(rate)">
                         </p>
@@ -55,6 +57,7 @@
             <div>
                 <input type='button' id='prev_page_btn' value='上一页' v-on:click="goPrevPage">
                 <input type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
+                <input type='button' id='stop_play_footer_btn' value='停止播放' v-on:click="stopVideo">
             </div>
         </div>
 
@@ -78,6 +81,10 @@
 
                 },
                 methods:{
+                    stopVideo:function() {
+                        console.log(`Stop playing video. Previous index: ${this.playing}`)
+                        this.playing=-1
+                    },
                     playVideo:function(index) {
                         $.post("/video_played",JSON.stringify({
                             id:this.vlists[index].id
