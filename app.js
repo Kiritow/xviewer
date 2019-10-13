@@ -38,11 +38,40 @@ async function InitDB() {
     await db.createTables()
 }
 
+const MAX_FS_STREAM = 1
+let CURRENT_FS_STREAM = 0
+
+async function AcquireFileHashToken() {
+    if(CURRENT_FS_STREAM < MAX_FS_STREAM) {
+        console.log("[FileHash] Acquire token.")
+        ++CURRENT_FS_STREAM
+        return Promise.resolve()
+    } else {
+        return new Promise((resolve)=>{
+            function checker() {
+                if(CURRENT_FS_STREAM < MAX_FS_STREAM) {
+                    console.log("[FileHash] Acquire token.")
+                    ++CURRENT_FS_STREAM
+                    resolve()
+                } else {
+                    setTimeout(checker, 1000)
+                }
+            }
+            setTimeout(checker, 1000)
+        })
+    }
+}
+
+function ReleaseFileHashToken() {
+    console.log("[FileHash] Released token.")
+    -- CURRENT_FS_STREAM
+}
+
 function GetFileHash(filepath) {
     return new Promise((resolve)=>{
         let hash=crypto.createHash('sha256')
-         // Default highWaterMark (or buffer size) is 64K. Change it to 10M dramatically reduces time of reading large files.
-        let input=fs.createReadStream(filepath,{highWaterMark:10*1024*1024})
+         // Default highWaterMark (or buffer size) is 64K. Change it to 40M dramatically reduces time of reading large files.
+        let input=fs.createReadStream(filepath,{highWaterMark:40*1024*1024})
         input.on('data',(data)=>{
             hash.update(data)
         })
@@ -113,7 +142,9 @@ async function CheckVideoObject(objname,szAdder) {
     let filepath=path.join(ROOT_DIR,"objects",objname)
     let stats=await promisify(fs.stat)(filepath)
     console.log(`Computing hash: ${objname}`)
+    await AcquireFileHashToken()
     let hashcode=await GetFileHash(filepath)
+    ReleaseFileHashToken()
     if(objname!=hashcode) {
         try {
             let coverPath=path.join(ROOT_DIR,"temp",hashcode + ".png")
@@ -126,7 +157,7 @@ async function CheckVideoObject(objname,szAdder) {
                 await promisify(fs.rename)(coverPath,path.join(ROOT_DIR,"objects",coverhash))
             } catch (e) {
                 if(e.code && (e.code=="ER_DUP_ENTRY" || e.code=="SQLITE_CONSTRAINT") ) {
-                    console.log(`Duplicated cover: ${coverhash}`)
+                    console.log(`<Ignored> Duplicated cover: ${coverhash}`)
                 } else {
                     throw e // something wrong
                 }
@@ -136,7 +167,7 @@ async function CheckVideoObject(objname,szAdder) {
             await promisify(fs.rename)(filepath,path.join(ROOT_DIR,"objects",hashcode))
         } catch (e) {
             if(e.code && (e.code=="ER_DUP_ENTRY" || e.code=="SQLITE_CONSTRAINT") ) {
-                console.log(`Duplicated file: ${objname}`)
+                console.log(`<Ignored> Duplicated file: ${objname}`)
             } else {
                 throw e // something wrong
             }
