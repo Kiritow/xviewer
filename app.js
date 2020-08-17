@@ -30,12 +30,6 @@ console.log("Logger Initialized.")
 const XVIEWER_VERSION = JSON.parse(fs.readFileSync("package.json")).version
 const db=new Database(new DatabaseProvider())
 
-async function InitDB() {
-    // TODO, FIXME
-    // table `objects` may vary between versions.
-    await db.createTables()
-}
-
 async function CompareSingleObject(id) {
     try {
         await promisify(fs.access)(path.join(ROOT_DIR,"objects",id))
@@ -46,7 +40,7 @@ async function CompareSingleObject(id) {
 }
 
 async function CompareObjects() {
-    let pArr=new Array
+    let pArr=[]
     let objs=await db.getObjectIDs()
     for(let i=0;i<objs.length;i++) {
         pArr.push(CompareSingleObject(objs[i]))
@@ -130,9 +124,7 @@ async function main() {
     await promisify(fs.mkdir)(path.join(ROOT_DIR,"objects"),{recursive:true})
     await promisify(fs.mkdir)(path.join(ROOT_DIR,"temp"),{recursive:true})
     console.log("[Done] Storage Initialized.")
-    console.log("Initializing database...")
-    await InitDB()
-    console.log("[Done] Database Initialized.")
+
     console.log("Comparing database with objects on disk...")
     await CompareObjects()
     console.log("[Done] All objects found on disk.")
