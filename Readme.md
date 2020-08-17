@@ -24,13 +24,19 @@ XViewer支持**MySQL**和**SQLite3**两种数据库模式启动（目前暂不�
 
 ## 添加视频文件
 
-1. 请将视频文件添加到`settings.json`中`rootdir`字段指出的文件夹下。XViewer目前暂时不支持嵌套文件夹。
+1. 将视频文件添加到`settings.json`配置的`${rootdir}/objects`文件夹下
 
-2. 确保ffmpeg已安装。Windows用户请到 [ffmpeg官网](https://www.ffmpeg.org/) 下载ffmpeg静态文件并将 `ffmpeg.exe` 放置在 `bin` 文件夹下. Linux用户通过`sudo apt install ffmpeg`安装ffmpeg，并将ffmpeg链接到`bin/ffmpeg.exe`
+2. 安装依赖 `sudo apt install ffmpeg python python-pip`
 
-3. 输入`node app`或`npm start`启动XViewer.
+3. 安装pip依赖 `pip install mysql-python`
 
-4. 等待XViewer完成对新增视频文件的扫描与封面生成.
+    若安装失败请尝试 `sudo apt install libmariadbclient-dev` 后再安装.
+
+4. 启动转换程序 `python generate.py`
+    
+    将自动扫描新增视频文件并生成封面. 重复的视频将被保留.
+
+添加视频文件可以与Web服务器同时运行.
 
 ## Web API接口
 
