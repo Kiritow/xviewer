@@ -42,9 +42,9 @@ XViewer支持**MySQL**和**SQLite3**两种数据库模式启动（目前暂不�
 
 - `/list` 获取所有视频文件信息
 
-- `/cover/...` 获取封面
+- `/cover?id=...` 获取封面
 
-- `/video/...` 获取视频
+- `/video?id=...` 获取视频
 
 - `/video_played` 更新视频观看数 (POST)
 
