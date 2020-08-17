@@ -19,16 +19,18 @@
         <div id="app">
             <div id="panel">
                 <div>
-                    <input type="text" v-model="keyword" v-on:input="search">
-                    <input type="date" v-model="afterdate" v-on:input="search">
+                    <input type="text" v-model="keyword">
+                    <input type="date" v-model="afterdate">
+                    <input type="button" id="search_btn" value="搜索" v-on:click="search">
                     <input type="button" id="reset_btn" value="清除搜索" v-on:click="clearSearch">
                     <input type='button' id='stop_play_header_btn' value='停止播放' v-on:click="stopVideo">
                     <input type='button' id='random_shuffle' value="随机排序" v-on:click="randomShuffle">
+                    <input type='button' id='count_shuffle' value="计数排序" v-on:click="countShuffle">
+                    <input type='button' id='oldest_shuffle' value="最早排序" v-on:click="oldestShuffle">
+                    <input type='button' id='latest_shuffle' value="最新排序" v-on:click="latestShuffle">
                 </div>
                 <p>
-                    {{vlists.length}}条数据. 
-                    <span v-if="resultCount>0">展示了{{resultCount}}个结果.</span> 
-                    <span v-if="resultCount==0">无搜索结果</span>
+                    共{{dlists.length}}个结果, 展示{{vlists.length}}条
 
                     <input type='button' id='prev_page_btn' value='上一页' v-on:click="goPrevPage">
                     <input type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
@@ -43,16 +45,15 @@
                         <a v-on:click="playVideo(index)">
                             <img v-bind:src="'/cover?id=' + info.cid" style="width: 30%">
                         </a>
-                        <p>{{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}}</p>
                     </div>
                     <div v-bind:id="'vid_'+index" v-if="playing==index">
                         <video id="video_playing" v-bind:src="'/video?id=' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay></video>
                         <p><span class='playing'>正在播放: {{info.fname}}</span></p>
-                        <p>{{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}}</p>
                         <p>
                             <input v-for="rate in rates" type="button" v-bind:value="rate + 'x'" v-on:click="changePlayRate(rate)">
                         </p>
                     </div>
+                    <p>{{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}} 观看计数: {{info.watchcount}}</p>
                 </div>
             </div>
             <div>
@@ -118,35 +119,47 @@
                     updateVisual:function() {
                         console.log("update visual")
                         let tmplst = []
-                        for(let i=this.showoffset;i<this.showoffset + this.showsize && i < this.dlists.length;i++) {
+                        for(let i=this.showoffset; i<this.showoffset + this.showsize && i < this.dlists.length; i++) {
                             tmplst.push(this.dlists[i])
                         }
                         this.vlists = tmplst
                     },
                     randomShuffle:function() {
                         console.log("random shuffle started")
-                        this.dlists = []
-                        let visited = new Set()
-                        for(let i=0;i<this.alists.length - 1;i++) {
-                            while(true) {
-                                let random = parseInt(Math.random() * this.alists.length, 10)
-                                if(!visited.has(random)) {
-                                    visited.add(random)
-                                    this.dlists.push(this.alists[random])
-                                    break
-                                }
-                            }
-                        }
-                        if(this.alists.length > 0) {
-                            for(let i=0;i<this.alists.length;i++) {
-                                if(!visited.has(i)) {
-                                    visited.add(i)
-                                    this.dlists.push(this.alists[i])
-                                    break
-                                }
-                            }
+                        // Do a quick Fisher–Yates shuffle
+                        let m = this.dlists.length
+                        while(m) {
+                            let i = Math.floor(Math.random() * m--)
+
+                            let temp = this.dlists[m]
+                            this.dlists[m] = this.dlists[i]
+                            this.dlists[i] = temp
                         }
                         console.log("random shuffle done.")
+                        this.updateVisual()
+                    },
+                    countShuffle: function() {
+                        console.log("count shuffle started.")
+                        this.dlists.sort((a, b) => {
+                            return a.watchcount - b.watchcount
+                        })
+                        console.log("count shuffle done.")
+                        this.updateVisual()
+                    },
+                    latestShuffle: function() {
+                        console.log("latest shuffle started.")
+                        this.dlists.sort((a, b) => {
+                            return new Date(a.mtime) - new Date(b.mtime)
+                        })
+                        console.log("latest shuffle done.")
+                        this.updateVisual()
+                    },
+                    oldestShuffle: function() {
+                        console.log("oldest shuffle started.")
+                        this.dlists.sort((a, b) => {
+                            return new Date(b.mtime) - new Date(a.mtime)
+                        })
+                        console.log("oldest shuffle done.")
                         this.updateVisual()
                     },
                     goPrevPage:function() {
@@ -169,23 +182,22 @@
                             this.updateVisual()
                         }
                     },
-                    search:function() {
-                        console.log(`search: ${this.keyword}`)
+                    search: function() {
+                        console.log(`search: ${this.keyword} ${this.afterdate}`)
                         this.stopVideo()
                         if(this.keyword.length<1 && this.afterdate==null) {
                             this.clearSearch()
                         } else {
                             this.resultCount=0
                             this.showoffset=0
-                            this.dlists = new Array()
-                            for(let i=0;i<this.alists.length;i++) {
-                                if(this.alists[i].fname.toLowerCase().indexOf(this.keyword.toLowerCase())!=-1 &&
-                                    (!this.afterdate || new Date(this.alists[i].mtime) -new Date(this.afterdate)>=0) ) {
+                            let temp = []
+                            for(let i=0;i<this.dlists.length;i++) {
+                                if(this.dlists[i].fname.toLowerCase().indexOf(this.keyword.toLowerCase())!=-1 && (!this.afterdate || new Date(this.dlists[i].mtime) -new Date(this.afterdate)>=0) ) {
                                     ++this.resultCount
-                                    this.dlists.push(this.alists[i])
+                                    temp.push(this.dlists[i])
                                 }
                             }
-
+                            this.dlists = temp
                             this.updateVisual()
                         }
                         console.log(`Total=${this.resultCount}`)
