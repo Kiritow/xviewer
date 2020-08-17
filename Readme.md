@@ -44,29 +44,4 @@ XViewer支持**MySQL**和**SQLite3**两种数据库模式启动（目前暂不�
 
 ## 数据表设计
 
-由于XViewer仍处于开发阶段，数据表随时可能发生变动，此处数据表设计仅供参考。
-
-### objects表
-
-| 列名 | 数据类型 | 属性 | 描述 |
-| - | - | - | - |
-| id | varchar(255) | primary key | 文件ID |
-| filename | varchar(255) | not null | 文件名 |
-| mtime | int | | 修改时间(时间戳) |
-| fsize | int | | 文件大小 |
-
-### covers表
-
-| 列名 | 数据类型 | 属性 | 描述 |
-| - | - | - | - |
-| id | varchar(255) | primary key, foreign key -> `objects.id` | 封面ID |
-
-### videos表
-
-| 列名 | 数据类型 | 属性 | 描述 |
-| - | - | - | - |
-| id | varchar(255) | primary key, foreign key -> `objects.id` | 视频ID |
-| coverid | varchar(255) | foreign key -> `covers.id` | 封面ID |
-| watchcount | int | | 观看次数 |
-| uploader | varchar(255) | | 上传者 | 
-| tags | varchar(255) | | 标签 |
+[xviewer.sql](design/xviewer.sql)
