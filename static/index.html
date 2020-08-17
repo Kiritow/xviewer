@@ -5,8 +5,8 @@
         <title>XV Homepage</title>
 
         <!-- developer version -->
-        <script src="/static/js/vue.js"></script>
-        <script src="/static/js/jquery-3.3.1.min.js"></script>
+        <script src="/js/vue.js"></script>
+        <script src="/js/jquery-3.3.1.min.js"></script>
 
         <style>
             .playing {
@@ -41,12 +41,12 @@
                 <div v-for="(info,index) in vlists" v-bind:id="index">
                     <div v-bind:id="'info_'+index"  v-show="playing!=index && !info.hidden" class="vinfo" v-bind:data-index="index">
                         <a v-on:click="playVideo(index)">
-                            <img v-bind:src="'/cover/' + info.cid" style="width: 30%">
+                            <img v-bind:src="'/cover?id=' + info.cid" style="width: 30%">
                         </a>
                         <p>{{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}}</p>
                     </div>
                     <div v-bind:id="'vid_'+index" v-if="playing==index">
-                        <video id="video_playing" v-bind:src="'/video/' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay></video>
+                        <video id="video_playing" v-bind:src="'/video?id=' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay></video>
                         <p><span class='playing'>正在播放: {{info.fname}}</span></p>
                         <p>{{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}}</p>
                         <p>
@@ -87,9 +87,9 @@
                         this.playing=-1
                     },
                     playVideo:function(index) {
-                        $.post("/video_played",JSON.stringify({
-                            id:this.vlists[index].id
-                        }))
+                        $.post("/video_played",{
+                            id: this.vlists[index].id
+                        })
                         console.log(`Play video: ${index}`)
                         this.playing=index
                     },
@@ -207,7 +207,7 @@
                 }
             })
 
-            $.post("/list",(data)=>{
+            $.get("/list",(data)=>{
                 app.alists=data
                 app.dlists=data
                 app.showoffset=0

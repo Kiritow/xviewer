@@ -6,6 +6,7 @@ const koa = require('koa')
 const koaRouter = require('koa-router')
 const koaBodyParser = require('koa-bodyparser')
 const koaJson = require('koa-json')
+const koaStatic = require('koa-static')
 const koaPartialContent = require('koa-partial-content')
 
 const Database = require('./database')
@@ -63,6 +64,11 @@ app.use(koaJson())
 const part = new koaPartialContent(path.join(ROOT_DIR, "objects"))
 const router = new koaRouter()
 
+// Tweaks
+part.isMedia = () => {
+    return true
+}
+
 router.get('/', async (ctx) => {
     ctx.set('Cache-Control', 'no-cache')
     ctx.set('Content-Type', 'text/html')
@@ -81,17 +87,31 @@ router.get('/list', async (ctx) => {
     }
 })
 
-router.get('/object', (ctx) => {
+router.get('/video', (ctx) => {
     if(ctx.query.id) {
+        console.log(`video ${ctx.query.id}`)
         return (part.middleware(ctx.query.id))(ctx)
     } else {
         ctx.status = 404
-        ctx.body = "Object Not Found"
+        ctx.body = "Video Not Found"
+    }
+})
+
+router.get('/cover', async (ctx) => {
+    if(ctx.query.id) {
+        console.log(`cover ${ctx.query.id}`)
+        ctx.set('Content-Type', 'image/png')
+        ctx.body = await promisify(fs.readFile)(path.join(ROOT_DIR, "objects", ctx.query.id))
+    } else {
+        ctx.status = 404
+        ctx.body = "Cover Not Found"
     }
 })
 
 router.post('/video_played', async (ctx) => {
     let postData = ctx.request.body
+    console.log(postData)
+
     console.log(`AddVideoCount: ${postData.id}`)
     try {
         await db.addVideoWatchByID(postData.id)
@@ -102,6 +122,8 @@ router.post('/video_played', async (ctx) => {
         ctx.body = "Database Error"
     }
 })
+
+app.use(koaStatic(path.join(__dirname, "static")))
 
 async function main() {
     console.log("Initializing disk storage...")

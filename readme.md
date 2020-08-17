@@ -2,7 +2,7 @@
 
 The X Viewer. [MIT Licensed](LICENSE).
 
-用Node.js+Vue写的本地视频文件的web浏览与播放系统，提供封面生成等功能。目前仍处于开发阶段。
+用Node.js+Vue+Koa写的本地视频文件的web浏览与播放系统，提供封面生成等功能.
 
 ## 配置启动
 
