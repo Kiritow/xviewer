@@ -58,8 +58,8 @@ async function CollectData() {
 }
 
 const app = new koa()
-koa.use(koaBodyParser())
-koa.use(koaJson())
+app.use(koaBodyParser())
+app.use(koaJson())
 const part = new koaPartialContent(path.join(ROOT_DIR, "objects"))
 const router = new koaRouter()
 
@@ -117,6 +117,7 @@ async function main() {
 
     console.log(`Backend version: ${XVIEWER_VERSION}`)
     console.log("Starting server...")
+    app.use(router.routes()).use(router.allowedMethods())
     app.listen(LISTEN_PORT)
 }
 

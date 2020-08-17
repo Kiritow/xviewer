@@ -18,3 +18,7 @@ config/*.json
 
 # This is just for test purpose.
 test.js
+
+# No lock file
+package-lock.json
+

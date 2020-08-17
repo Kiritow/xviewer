@@ -5,6 +5,7 @@
   "main": "app.js",
   "dependencies": {
     "koa": "^2.13.0",
+    "koa-bodyparser": "^4.3.0",
     "koa-json": "^2.0.2",
     "koa-partial-content": "^2.0.1",
     "koa-router": "^9.4.0",
