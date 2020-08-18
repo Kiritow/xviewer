@@ -141,7 +141,7 @@
                     countShuffle: function() {
                         console.log("count shuffle started.")
                         this.dlists.sort((a, b) => {
-                            return a.watchcount - b.watchcount
+                            return b.watchcount - a.watchcount
                         })
                         console.log("count shuffle done.")
                         this.updateVisual()
@@ -149,7 +149,7 @@
                     latestShuffle: function() {
                         console.log("latest shuffle started.")
                         this.dlists.sort((a, b) => {
-                            return new Date(a.mtime) - new Date(b.mtime)
+                            return new Date(b.mtime) - new Date(a.mtime)
                         })
                         console.log("latest shuffle done.")
                         this.updateVisual()
@@ -157,7 +157,7 @@
                     oldestShuffle: function() {
                         console.log("oldest shuffle started.")
                         this.dlists.sort((a, b) => {
-                            return new Date(b.mtime) - new Date(a.mtime)
+                            return new Date(a.mtime) - new Date(b.mtime)
                         })
                         console.log("oldest shuffle done.")
                         this.updateVisual()
