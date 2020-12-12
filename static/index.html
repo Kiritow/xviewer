@@ -28,6 +28,8 @@
                     <input type='button' id='count_shuffle' value="计数排序" v-on:click="countShuffle">
                     <input type='button' id='oldest_shuffle' value="最早排序" v-on:click="oldestShuffle">
                     <input type='button' id='latest_shuffle' value="最新排序" v-on:click="latestShuffle">
+                    <input type='button' id='small_shuffle' value="最小排序" v-on:click="smallShuffle">
+                    <input type='button' id='big_shuffle' value="最大排序" v-on:click="bigShuffle">
                 </div>
                 <p>
                     共{{dlists.length}}个结果, 展示{{vlists.length}}条
@@ -117,6 +119,7 @@
                         }
                     },
                     updateVisual:function() {
+                        this.stopVideo()
                         console.log("update visual")
                         let tmplst = []
                         for(let i=this.showoffset; i<this.showoffset + this.showsize && i < this.dlists.length; i++) {
@@ -160,6 +163,22 @@
                             return new Date(a.mtime) - new Date(b.mtime)
                         })
                         console.log("oldest shuffle done.")
+                        this.updateVisual()
+                    },
+                    bigShuffle: function() {
+                        console.log("big shuffle started.")
+                        this.dlists.sort((a, b) => {
+                            return new Date(b.fsize) - new Date(a.fsize)
+                        })
+                        console.log("big shuffle done.")
+                        this.updateVisual()
+                    },
+                    smallShuffle: function() {
+                        console.log("small shuffle started.")
+                        this.dlists.sort((a, b) => {
+                            return new Date(a.fsize) - new Date(b.fsize)
+                        })
+                        console.log("small shuffle done.")
                         this.updateVisual()
                     },
                     goPrevPage:function() {
