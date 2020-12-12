@@ -1,6 +1,6 @@
--- MySQL dump 10.16  Distrib 10.1.44-MariaDB, for debian-linux-gnu (x86_64)
+-- MySQL dump 10.16  Distrib 10.1.47-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: 127.1    Database: xviewer
+-- Host: 127.0.0.1    Database: xviewer
 -- ------------------------------------------------------
 -- Server version	10.4.8-MariaDB
 
@@ -39,8 +39,8 @@ DROP TABLE IF EXISTS `objects`;
 CREATE TABLE `objects` (
   `id` varchar(255) NOT NULL,
   `filename` varchar(255) NOT NULL,
-  `mtime` int(11) DEFAULT NULL,
-  `fsize` int(11) DEFAULT NULL,
+  `mtime` datetime NOT NULL,
+  `fsize` bigint(20) NOT NULL,
   `createtime` timestamp NOT NULL DEFAULT current_timestamp(),
   `updatetime` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`)
@@ -115,4 +115,4 @@ CREATE TABLE `videos` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-08-17 16:55:50
+-- Dump completed on 2020-12-13  0:15:18

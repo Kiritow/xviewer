@@ -145,7 +145,7 @@ class DBProviderMySQL {
                 id: row.id,
                 cid: row.coverid,
                 fname: row.filename,
-                mtime: new Date(row.mtime * 1000),
+                mtime: row.mtime,
                 fsize: row.fsize,
                 vtime: row.videotime,
                 watchcount: row.watchcount
