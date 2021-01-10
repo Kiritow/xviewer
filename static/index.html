@@ -5,12 +5,71 @@
         <title>XV Homepage</title>
 
         <!-- developer version -->
-        <script src="/js/vue.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
         <script src="/js/jquery-3.3.1.min.js"></script>
 
         <style>
+            body {
+                background-color: #35363A;
+            }
             .playing {
-                color:blue
+                color: cyan;
+                font-weight: bold;
+            }
+            .cover {
+                display: block;
+                margin-left: auto;
+                margin-right: auto;
+                width: 30%;
+                border-style: solid;
+                border-color: white;
+            }
+            div.login {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                border-color: white;
+                border-style: solid;
+            }
+            p.login {
+                position: relative;
+                left: 5px;
+                right: 5px;
+            }
+            span.login {
+                display: block;
+            }
+            .text {
+                color: white;
+            }
+            .video {
+                display: block;
+                margin: auto;
+            }
+            .vinfo {
+                text-align: center;
+            }
+            .tag {
+                color: chartreuse;
+            }
+            .tagcount {
+                color: white;
+            }
+            .button {
+                background-color: #4CAF50; /* Green */
+                border: none;
+                color: white;
+                padding: 5px 10px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                border-radius: 5px;
+            }
+            .disbutton {
+                background-color: gray;
+            }
+            .siteLabel {
+                text-align: center;
             }
         </style>
     </head>
@@ -19,75 +78,134 @@
         <div id="app">
             <div id="panel">
                 <p>
-                    <input type="text" v-model="keyword">
-                    <input type="date" v-model="afterdate">
-                    <input type="button" id="search_btn" value="搜索" v-on:click="search">
-                    <input type="button" id="clear_btn" value="全局搜索" v-on:click="clearAndSearch">
-                    <input type="button" id="reset_btn" value="清除搜索" v-on:click="clearSearch">
+                    <div>
+                        <input type="text" v-model="keyword">
+                        <input type="date" v-model="afterdate">
+                        <input class="button" type="button" id="search_btn" value="搜索" v-on:click="search">
+                        <input class="button" type="button" id="clear_btn" value="全局搜索" v-on:click="clearAndSearch">
+                        <input class="button" type="button" id="reset_btn" value="清除搜索" v-on:click="clearSearch">
+                    </div>
+                    <div class="login" v-if="currentUsername.length < 1">
+                        <p class="login"><span class="text">用户名</span> <input type="text" id="login_username" v-model="inputUsername"></p>
+                        <p class="login"><span class="text">密码</span> <input type="password" id="login_password" v-model="inputPassword"></p>
+                        <p class="login">
+                            <input class="button" type="button" id="register_btn" value="注册" v-on:click="register" :disabled="loginInProgress" :class="{disbutton: loginInProgress}">
+                            <input class="button" type="button" id="login_btn" value="登录" v-on:click="login" :disabled="loginInProgress" :class="{disbutton: loginInProgress}">
+                        </p>
+                        <p class="login" v-if="loginMessage.length > 0">
+                            <span class="text">{{loginMessage}}</span>
+                        </p>
+                    </div>
+                    <div class="login" v-if="currentUsername.length > 0">
+                        <p class="login"><span class="text login">已作为 {{currentUsername}} 登录</span></p>
+                        <p class="login"><input class="button" type="button" id="logout_btn" value="注销" v-on:click="logout"></p>
+                    </div>
                 </p>
                 <p>
-                    <input type='button' id='random_shuffle' value="随机排序" v-on:click="randomShuffle">
-                    <input type='button' id='count_shuffle' value="计数排序" v-on:click="countShuffle">
-                    <input type='button' id='oldest_shuffle' value="最早排序" v-on:click="oldestShuffle">
-                    <input type='button' id='latest_shuffle' value="最新排序" v-on:click="latestShuffle">
-                    <input type='button' id='small_shuffle' value="最小排序" v-on:click="smallShuffle">
-                    <input type='button' id='big_shuffle' value="最大排序" v-on:click="bigShuffle">
-                    <input type='button' id='recent_shuffle' value="最近排序" v-on:click="recentShuffle">
-                    <input type='button' id='watched_shuffle' value="最近看过(私人/在线)" v-on:click="watchedShuffleOnline">
-                    <input type='button' id='watched_shuffle' value="最近看过(全站)" v-on:click="watchedShuffle">
+                    <input class="button" type='button' id='random_shuffle' value="随机排序" v-on:click="randomShuffle">
+                    <input class="button" type='button' id='count_shuffle' value="计数排序" v-on:click="countShuffle">
+                    <input class="button" type='button' id='oldest_shuffle' value="最早排序" v-on:click="oldestShuffle">
+                    <input class="button" type='button' id='latest_shuffle' value="最新排序" v-on:click="latestShuffle">
+                    <input class="button" type='button' id='small_shuffle' value="最小排序" v-on:click="smallShuffle">
+                    <input class="button" type='button' id='big_shuffle' value="最大排序" v-on:click="bigShuffle">
+                    <input class="button" type='button' id='recent_shuffle' value="最近排序" v-on:click="recentShuffle">
+                    <!-- <input class="button" type='button' id='watched_shuffle' value="最近看过(全站/本地)" v-on:click="watchedShuffle"> -->
+                    <!-- <input class="button" type='button' id='watched_shuffle_online' value="最近看过(私人/在线)" v-on:click="watchedShuffleOnline"> -->
+                    <input class="button disbutton" type='button' value="收藏夹(请登录)" v-if="currentUsername.length < 1" disabled>
+                    <input class="button disbutton" type='button' value="最近看过(请登录)" v-if="currentUsername.length < 1" disabled>
+                    <input class="button" type='button' value="收藏夹" v-if="currentUsername.length > 0">
+                    <input class="button" type='button' value="最近看过" v-if="currentUsername.length > 0" v-on:click="watchedShuffleOnline">
                 </p>
                 <p>
-                    <span>共{{dlists.length}}个结果, 展示{{vlists.length}}条</span>
-                    <input type='button' id='prev_page_btn' value='上一页' v-on:click="goPrevPage">
-                    <input type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
-                    <input type='button' id='stop_play_header_btn' value='停止播放' v-on:click="stopVideo">
+                    <span class="text">共{{dlists.length}}个结果, 展示{{vlists.length}}条</span>
+                    <input class="button" type='button' id='prev_page_btn' value='上一页' v-on:click="goPrevPage">
+                    <input class="button" type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
+                    <input class="button" type='button' id='stop_play_header_btn' value='停止播放' v-on:click="stopVideo">
                 </p>
-                <p v-show="servermsg.length>0">
+                <p v-show="servermsg.length > 0">
                     {{servermsg}}
                 </p>
             </div>
-            <div id="board">
+            <div>
                 <div v-for="(info,index) in vlists" v-bind:id="index">
-                    <div v-bind:id="'info_'+index"  v-show="playing!=index && !info.hidden" class="vinfo" v-bind:data-index="index">
-                        <a v-on:click="playVideo(index)">
-                            <img v-bind:src="'/cover?id=' + info.cid" style="width: 30%">
+                    <div v-bind:id="'info_'+index"  v-show="playing!=index && !info.hidden" class="text vinfo" v-bind:data-index="index">
+                        <a>
+                            <img class="cover" v-bind:src="'/cover?id=' + info.cid" v-on:click="playVideo(index)">
                         </a>
                     </div>
                     <div v-bind:id="'vid_'+index" v-if="playing==index">
-                        <video id="video_playing" v-bind:src="'/video?id=' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay></video>
-                        <p><span class='playing'>正在播放: {{info.fname}}</span></p>
+                        <video class="video" id="video_playing" v-bind:src="'/video?id=' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay></video>
+                        <p class='text vinfo'>
+                            <span class="playing">正在播放: {{info.fname}}</span>
+                        </p>
                         <p>
-                            <input v-for="rate in rates" type="button" v-bind:value="rate + 'x'" v-on:click="changePlayRate(rate)">
+                            <input class="button" v-for="rate in rates" type="button" v-bind:value="rate + 'x'" v-on:click="changePlayRate(rate)">
                         </p>
                     </div>
-                    <p>
+                    <p class="text vinfo">
                         {{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}} 观看计数: {{info.watchcount}}
+                        <input class="button" type='button' value="收藏" v-if="currentUsername.length > 0">
                         <span v-for="(tagname) in info.tags">
-                            <a v-on:click="filterByTag(tagname)" style="color: blue">#{{tagname}}</a>
+                            <a class="tag" v-on:click="filterByTag(tagname)">#{{tagname}}</a>
                             <span> </span>
                         </span>
-                        <input type='text' v-model="pageInputs.tagInputs[index]"> <input type='button' v-on:click="addVideoTag(index)" value="添加tag">
+                        <input type='text' v-model="pageInputs.tagInputs[index].value" @keyup.enter="addVideoTag(index)" >
+                        <input class="button" type='button' v-on:click="addVideoTag(index)" value="添加tag">
                     </p>
                 </div>
             </div>
-            <div>
-                <input type='button' id='prev_page_btn' value='上一页' v-on:click="goPrevPage">
-                <input type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
-                <input type='button' id='stop_play_footer_btn' value='停止播放' v-on:click="stopVideo">
+            <div v-if="vlists.length > 0">
+                <span class="text">共{{dlists.length}}个结果, 展示{{vlists.length}}条</span>
+                <input class="button" type='button' id='prev_page_btn' value='上一页' v-on:click="goPrevPage">
+                <input class="button" type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
+                <input class="button" type='button' id='stop_play_footer_btn' value='停止播放' v-on:click="stopVideo">
             </div>
             <div>
-                <p>全部标签</p>
+                <p class="text">全部标签</p>
                 <span v-for="(tagInfo) in alltags">
-                    <a v-on:click="filterByTag(tagInfo.tag)" style="color: blue">#{{tagInfo.tag}}</a>
-                    <span>({{tagInfo.count}}) </span>
+                    <a class="tag" v-on:click="filterByTag(tagInfo.tag)">#{{tagInfo.tag}}</a>
+                    <span class="tagcount">({{tagInfo.count}}) </span>
                 </span>
             </div>
         </div>
 
         <script>
-            let app=new Vue({
-                el:"#app",
-                data:{
+            function sendPost(url, data, dataType) {
+                return new Promise((resolve, reject) => {
+                    $.post(url, data, dataType).then(resolve).catch(reject)
+                })
+            }
+            function sendGet(url, dataType) {
+                return new Promise((resolve, reject) => {
+                    $.get(url, dataType).then(resolve).catch(reject)
+                })
+            }
+            function toHexString(buffer) {
+                let digest = ''
+                const view = new DataView(buffer)
+                for(var i = 0; i < view.byteLength; i += 4) {
+                    // We use getUint32 to reduce the number of iterations (notice the `i += 4`)
+                    var value = view.getUint32(i)
+                    // toString(16) will transform the integer into the corresponding hex string
+                    // but will remove any initial "0"
+                    var stringValue = value.toString(16)
+                    // One Uint32 element is 4 bytes or 8 hex chars (it would also work with 4
+                    // chars for Uint16 and 2 chars for Uint8)
+                    var padding = '00000000'
+                    var paddedValue = (padding + stringValue).slice(-padding.length)
+                    digest += paddedValue
+                }
+                
+                return digest
+            }
+            async function sha256(str) {
+                const buffer = new TextEncoder("utf-8").encode(str)
+                const data = await crypto.subtle.digest("SHA-256", buffer)
+                return toHexString(data)
+            }
+            const app=new Vue({
+                el: "#app",
+                data: {
                     rates: [0.5,0.75,1,1.25,1.5,2,2.5],
                     alists: [],  // All video
                     dlists: [],  // Searched result
@@ -99,11 +217,30 @@
                     afterdate: null,
                     resultCount: -1,
                     servermsg: '',
-                    webusername: '',
                     pageInputs: {
-                        tagInputs: new Array(100)
+                        tagInputs: []
                     },
                     alltags: [],
+
+                    loginInProgress: false,
+                    inputUsername: "",
+                    inputPassword: "",
+                    currentUsername: "",
+                    currentTicket: "",
+                    loginMessage: "",
+                },
+                mounted() {
+                    console.log("Running mounted method...")
+                    this.pageInputs.tagInputs = []
+                    for(let i=0; i<this.showsize; i++) {
+                        this.pageInputs.tagInputs.push({
+                            value: ""
+                        })
+                    }
+                    if (localStorage.getItem("xvcache_username")) {
+                        this.currentUsername = localStorage.getItem("xvcache_username")
+                        this.currentTicket = localStorage.getItem("xvcache_ticket")
+                    }
                 },
                 computed: {
 
@@ -115,7 +252,8 @@
                     },
                     playVideo(index) {
                         $.post("/video_played",{
-                            id: this.vlists[index].id
+                            id: this.vlists[index].id,
+                            ticket: this.currentTicket,
                         })
                         console.log(`Play video: ${index}`)
                         this.playing=index
@@ -249,9 +387,10 @@
                         console.log("filter by tag done.")
                         this.updateVisual()
                     },
-                    addVideoTag(index) {
+                    async addVideoTag(index) {
                         const videoId = this.vlists[index].id
-                        let newTagValue = (this.pageInputs.tagInputs[index] || "").trim()
+                        let newTagValue = (this.pageInputs.tagInputs[index].value || "").trim()
+                        this.pageInputs.tagInputs[index].value = ""
                         console.log(`add video tag ${index} ${videoId} ${newTagValue}`)
 
                         if (newTagValue == "" || newTagValue == "-" || newTagValue.length < 2) {
@@ -266,31 +405,35 @@
                                 return
                             }
 
-                            $.post("/remove_tag", {
-                                id: videoId,
-                                tag: newTagValue
-                            }).then(() => {
+                            try {
+                                await sendPost("/remove_tag", {
+                                    id: videoId,
+                                    tag: newTagValue
+                                })
                                 let aIdx = this.vlists[index].tags.indexOf(newTagValue)
                                 this.vlists[index].tags.splice(aIdx, 1)
                                 this.generateAllTags()
-                            }).catch((e) => {
+                            } catch (e) {
+                                console.log(e)
                                 console.log(`remote failed to add tag: ${newTagValue}`)
-                            })
+                            }
                         } else {
                             if (this.vlists[index].tags.indexOf(newTagValue) != -1) {
                                 console.log("ignore existing value")
                                 return
                             }
 
-                            $.post("/add_tag", {
-                                id: videoId,
-                                tag: newTagValue
-                            }).then(() => {
+                            try {
+                                await sendPost("/add_tag", {
+                                    id: videoId,
+                                    tag: newTagValue
+                                })
                                 this.vlists[index].tags.push(newTagValue)
                                 this.generateAllTags()
-                            }).catch((e) => {
+                            } catch (e) {
+                                console.log(e)
                                 console.log(`remote failed to add tag: ${newTagValue}`)
-                            })
+                            }
                         }
                     },
                     goPrevPage() {
@@ -386,8 +529,12 @@
                             this.alists = data
                             this.showoffset = 0
                             this.generateAllTags()
-                        },'json').then(() => {
-                            $.get("/recent", (data) => {
+                        },'json').then(async () => {
+                            try {
+                                let data = await sendPost("/history", {
+                                    ticket: this.currentTicket,
+                                }, 'json')
+                                data = JSON.parse(data)
                                 const tempList = []
                                 data.forEach((info) => {
                                     for(let i=0; i<this.alists.length; i++) {
@@ -399,17 +546,88 @@
                                 })
                                 this.dlists = tempList
                                 this.updateVisual()
-                            }, 'json')
+                            } catch (e) {
+                                console.log()
+                            }
                         })
                     },
+                    async register() {
+                        if (!this.inputUsername || this.inputUsername.length < 1 || !this.inputPassword || this.inputPassword.length < 1) {
+                            this.loginMessage = "请输入用户名和密码!"
+                            return
+                        }
+                        this.loginInProgress = true
+                        this.loginMessage = "正在注册..."
+                        try {
+                            let data = await sendPost("/register", {
+                                "username": this.inputUsername,
+                                "password": await sha256(this.inputPassword),
+                            }, 'json')
+                            data = JSON.parse(data)
+                            console.log(data)
+
+                            if (data.code != 0) {
+                                throw new Error(data.message)
+                            }
+
+                            this.loginMessage = ""
+
+                            this.inputUsername = ""
+                            this.inputPassword = ""
+                            this.currentUsername = data.username
+                            this.currentTicket = data.ticket
+                            localStorage.setItem("xvcache_username", this.currentUsername)
+                            localStorage.setItem("xvcache_ticket", this.currentTicket)
+                        } catch (e) {
+                            console.log(e)
+                            this.loginMessage = `注册失败 ${e.toString()}`
+                        } finally {
+                            this.loginInProgress = false
+                        }
+                    },
+                    async login() {
+                        if (!this.inputUsername || this.inputUsername.length < 1 || !this.inputPassword || this.inputPassword.length < 1) {
+                            this.loginMessage = "请输入用户名和密码!"
+                            return
+                        }
+                        this.loginInProgress = true
+                        this.loginMessage = "正在登录..."
+                        try {
+                            let data = await sendPost("/login", {
+                                "username": this.inputUsername,
+                                "password": await sha256(this.inputPassword),
+                            }, 'json')
+                            data = JSON.parse(data)
+                            console.log(data)
+
+                            if (data.code != 0) {
+                                throw new Error(data.message)
+                            }
+
+                            this.loginMessage = ""
+
+                            this.inputUsername = ""
+                            this.inputPassword = ""
+                            this.currentUsername = data.username
+                            this.currentTicket = data.ticket
+                            localStorage.setItem("xvcache_username", this.currentUsername)
+                            localStorage.setItem("xvcache_ticket", this.currentTicket)
+                        } catch (e) {
+                            console.log(e)
+                            this.loginMessage = `登录失败! ${e.toString()}`
+                        } finally {
+                            this.loginInProgress = false
+                        }
+                    },
+                    logout() {
+                        this.currentUsername = ""
+                        this.currentTicket = ""
+                        localStorage.removeItem("xvcache_username")
+                        localStorage.removeItem("xvcache_ticket")
+                        this.loginMessage = ""
+                    }
                 }
             })
-
-            $.get("/user", (data)=>{
-                console.log(data)
-                app.webusername = data.name
-                console.log(`set user name as ${data.name}`)
-            }, 'json')
 
             $.get("/list", (data)=>{
                 app.alists = data
@@ -423,4 +641,9 @@
             })
         </script>
     </body>
+    <footer>
+        <p class="text siteLabel">
+            X Video Project 2021
+        </p>
+    </footer>
 </html>
