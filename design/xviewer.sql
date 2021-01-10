@@ -16,6 +16,24 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Table structure for table `accounts`
+--
+
+DROP TABLE IF EXISTS `accounts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `accounts` (
+  `uid` varchar(128) NOT NULL COMMENT '用户名sha256',
+  `username` varchar(255) NOT NULL COMMENT '用户名',
+  `password` varchar(128) NOT NULL COMMENT '加盐密码sha256',
+  `salt` varchar(32) NOT NULL COMMENT '盐值',
+  `createtime` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updatetime` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`uid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='账户表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `covers`
 --
 
@@ -27,6 +45,21 @@ CREATE TABLE `covers` (
   PRIMARY KEY (`id`),
   CONSTRAINT `covers_ibfk_1` FOREIGN KEY (`id`) REFERENCES `objects` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `history`
+--
+
+DROP TABLE IF EXISTS `history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `history` (
+  `username` varchar(255) NOT NULL COMMENT '用户名',
+  `host` varchar(255) NOT NULL DEFAULT '' COMMENT '访问地址',
+  `id` varchar(255) NOT NULL DEFAULT '' COMMENT '视频ID',
+  `createtime` timestamp NOT NULL DEFAULT current_timestamp() COMMENT '访问时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='用户访问日志';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -45,6 +78,38 @@ CREATE TABLE `objects` (
   `updatetime` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tickets`
+--
+
+DROP TABLE IF EXISTS `tickets`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `tickets` (
+  `tid` varchar(128) NOT NULL COMMENT 'TicketID',
+  `uid` varchar(128) NOT NULL COMMENT '用户名sha256',
+  `createtime` timestamp NOT NULL DEFAULT current_timestamp(),
+  `expiretime` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`tid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='凭据表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `userfav`
+--
+
+DROP TABLE IF EXISTS `userfav`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `userfav` (
+  `uid` varchar(128) NOT NULL COMMENT '用户名sha256',
+  `id` varchar(255) NOT NULL COMMENT '视频id',
+  `createtime` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updatetime` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`uid`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='收藏表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -73,11 +138,11 @@ DROP TABLE IF EXISTS `videos`;
 CREATE TABLE `videos` (
   `id` varchar(255) NOT NULL,
   `coverid` varchar(255) DEFAULT NULL,
-  `videotime` int(11) DEFAULT NULL,
-  `watchcount` int(11) DEFAULT NULL,
-  `watchtime` int(11) DEFAULT NULL,
-  `uploader` varchar(255) DEFAULT NULL,
-  `tags` varchar(255) DEFAULT NULL,
+  `videotime` int(11) NOT NULL DEFAULT 0,
+  `watchcount` int(11) NOT NULL DEFAULT 0,
+  `watchtime` int(11) NOT NULL DEFAULT 0,
+  `uploader` varchar(255) NOT NULL DEFAULT '',
+  `tags` text DEFAULT NULL,
   `createtime` timestamp NOT NULL DEFAULT current_timestamp(),
   `updatetime` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
@@ -115,4 +180,4 @@ CREATE TABLE `videos` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2020-12-13  0:15:18
+-- Dump completed on 2021-01-10 17:06:52
