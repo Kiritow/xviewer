@@ -27,6 +27,22 @@ class Database {
     async addVideoWatchByID(objID) {
         return this.proxy.addVideoWatchByID(objID)
     }
+
+    async addVideoWatchHistory(username, remoteIP, objID) {
+        return this.proxy.addVideoWatchHistory(username, remoteIP, objID)
+    }
+    
+    async addVideoTag(objID, value) {
+        return this.proxy.addVideoTag(objID, value)
+    }
+
+    async removeVideoTag(objID, value) {
+        return this.proxy.removeVideoTag(objID, value)
+    }
+
+    async getRecentByUser(username) {
+        return this.proxy.getRecentByUser(username)
+    }
 }
 
 module.exports=Database

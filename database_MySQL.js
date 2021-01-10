@@ -119,7 +119,7 @@ class DBProviderMySQL {
     }
 
     async getVideoObjects() {
-        let results = await this.poolQueryResults("select videos.id,coverid,filename,mtime,fsize,videotime,watchcount from videos inner join objects on videos.id=objects.id ", [])
+        let results = await this.poolQueryResults("select videos.id,coverid,filename,mtime,fsize,videotime,watchcount,videos.createtime,videos.updatetime,tags from videos inner join objects on videos.id=objects.id ", [])
         return results.map((row) => {
             return {
                 id: row.id,
@@ -128,13 +128,78 @@ class DBProviderMySQL {
                 mtime: row.mtime,
                 fsize: row.fsize,
                 vtime: row.videotime,
-                watchcount: row.watchcount
+                watchcount: row.watchcount,
+                createtime: row.createtime,
+                updatetime: row.updatetime,
+                tags: JSON.parse(row.tags || "[]"),
             }
         })
     }
 
     async addVideoWatchByID(objID) {
         await this.poolQuery("update videos set watchcount=watchcount+1 where id=?", [objID])
+    }
+
+    async addVideoWatchHistory(username, remoteIP, objID) {
+        await this.poolQuery("insert into history(username, host, id) values (?,?,?)", [username, remoteIP, objID])
+    }
+
+    async addVideoTag(objID, value) {
+        let conn = null
+        try {
+            conn = await this.getConnection()
+            await this.connBegin(conn)
+            const result = await this.connQueryResults(conn, "select * from videos where id=? for update", [objID])
+            if (result.length < 1) {
+                return
+            }
+            const data = result[0]
+            const oldTags = JSON.parse(data.tags || "[]")
+            if (oldTags.indexOf(value) == -1) {
+                oldTags.push(value)
+                await this.connQuery(conn, "update videos set tags=?, updatetime=updatetime where id=?", [JSON.stringify(oldTags), objID])
+                await this.connCommit(conn)
+            }
+        } finally {
+            if (conn) {
+                await this.connRollback(conn)
+                conn.release()
+            }
+        }
+    }
+
+    async removeVideoTag(objID, value) {
+        let conn = null
+        try {
+            conn = await this.getConnection()
+            await this.connBegin(conn)
+            const result = await this.connQueryResults(conn, "select * from videos where id=? for update", [objID])
+            if (result.length < 1) {
+                return
+            }
+            const data = result[0]
+            const oldTags = JSON.parse(data.tags || "[]")
+            if (oldTags.indexOf(value) != -1) {
+                oldTags.splice(oldTags.indexOf(value), 1)
+                await this.connQuery(conn, "update videos set tags=?, updatetime=updatetime where id=?", [JSON.stringify(oldTags), objID])
+                await this.connCommit(conn)
+            }
+        } finally {
+            if (conn) {
+                await this.connRollback(conn)
+                conn.release()
+            }
+        }
+    }
+
+    async getRecentByUser(username) {
+        let results = await this.poolQueryResults("select * from history where username=? order by createtime desc", [username])
+        return results.map((row) => {
+            return {
+                id: row.id,
+                createtime: row.createtime
+            }
+        })
     }
 }
 
