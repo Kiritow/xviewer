@@ -28,8 +28,8 @@ class Database {
         return this.proxy.addVideoWatchByID(objID)
     }
 
-    async addVideoWatchHistory(username, remoteIP, objID) {
-        return this.proxy.addVideoWatchHistory(username, remoteIP, objID)
+    async addVideoWatchHistory(ticket, remoteIP, objID) {
+        return this.proxy.addVideoWatchHistory(ticket, remoteIP, objID)
     }
     
     async addVideoTag(objID, value) {
@@ -40,8 +40,16 @@ class Database {
         return this.proxy.removeVideoTag(objID, value)
     }
 
-    async getRecentByUser(username) {
-        return this.proxy.getRecentByUser(username)
+    async getHistoryByTicket(ticket) {
+        return this.proxy.getHistoryByTicket(ticket)
+    }
+
+    async loginUser(username, passhash) {
+        return this.proxy.loginUser(username, passhash)
+    }
+
+    async addUser(username, passhash) {
+        return this.proxy.addUser(username, passhash)
     }
 }
 

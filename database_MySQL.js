@@ -1,5 +1,17 @@
-const fs=require('fs')
-const mysql=require('mysql')
+const fs = require('fs')
+const mysql = require('mysql')
+const crypto = require('crypto');
+const { RSA_NO_PADDING } = require('constants');
+
+function GetSha256(content) {
+    return crypto.createHash('sha256')
+        .update(content)
+        .digest('hex');
+}
+
+function GenerateRandomSalt() {
+    return Math.random().toString(36).substring(2, 15)
+}
 
 class DBProviderMySQL {
     constructor() {
@@ -140,8 +152,13 @@ class DBProviderMySQL {
         await this.poolQuery("update videos set watchcount=watchcount+1 where id=?", [objID])
     }
 
-    async addVideoWatchHistory(username, remoteIP, objID) {
-        await this.poolQuery("insert into history(username, host, id) values (?,?,?)", [username, remoteIP, objID])
+    async addVideoWatchHistory(ticket, remoteIP, objID) {
+        let uid = ""
+        if (ticket) {
+            uid = await this.getUserIDByTicket(ticket)
+            if (uid === null) uid = ""
+        }
+        await this.poolQuery("insert into history(username, host, id) values (?,?,?)", [uid, remoteIP, objID])
     }
 
     async addVideoTag(objID, value) {
@@ -192,14 +209,78 @@ class DBProviderMySQL {
         }
     }
 
-    async getRecentByUser(username) {
-        let results = await this.poolQueryResults("select * from history where username=? order by createtime desc", [username])
+    async getUserIDByTicket(ticket) {
+        const result = await this.poolQueryResults("select * from tickets where tid=?", [ticket])
+        if (result.length < 1) {
+            return null
+        }
+        return result[0].uid
+    }
+
+    async getHistoryByTicket(ticket) {
+        let uid = await this.getUserIDByTicket(ticket)
+        if (!uid) {
+            return []
+        }
+        let results = await this.poolQueryResults("select id from history where username=? group by id order by createtime desc", [uid])
         return results.map((row) => {
             return {
                 id: row.id,
                 createtime: row.createtime
             }
         })
+    }
+
+    async createTicket(uid, lastMS) {
+        const ticket = GetSha256(`${uid}${GenerateRandomSalt()}${new Date()}`)
+        await this.poolQuery("insert into tickets(tid, uid, expiretime) values (?,?,?)", [ticket, uid, new Date(new Date().getTime() + lastMS)])
+        return ticket
+    }
+
+    async loginUser(username, passhash) {
+        const uid = GetSha256(username)
+        let result = await this.poolQueryResults("select * from accounts where uid=?", [uid])
+        if (result.length < 1) {
+            return {
+                code: -1,
+                message: "wrong username or password"
+            }
+        }
+        const info = result[0]
+        if (GetSha256(`${uid}${passhash}${info.salt}`) === info.password) {
+            return {
+                code: 0,
+                message: 'success',
+                username,
+                uid,
+                ticket: await this.createTicket(uid, 12 * 3600 * 1000),
+            }
+        }
+        return {
+            code: -1,
+            message: "wrong username or password"
+        }
+    }
+
+    async addUser(username, passhash) {
+        const uid = GetSha256(username)
+        let result = await this.poolQueryResults("select * from accounts where uid=?", [uid])
+        if (result.length > 0) {
+            return {
+                code: -1,
+                message: "username already exists."
+            }
+        }
+        const salt = GenerateRandomSalt()
+        const storagePass = GetSha256(`${uid}${passhash}${salt}`)
+        await this.poolQueryResults("insert into accounts(uid, username, password, salt) values (?,?,?,?)", [uid, username, storagePass, salt])
+        return {
+            code: 0,
+            message: 'success',
+            username,
+            uid,
+            ticket: await this.createTicket(uid, 12 * 3600 * 1000),
+        }
     }
 }
 

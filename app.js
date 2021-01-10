@@ -108,11 +108,17 @@ router.post('/video_played', async (ctx) => {
 
     const postData = ctx.request.body
     console.log(postData)
+    
+    const videoID = postData.id
+    let ticket = postData.ticket
+    if (!ticket || ticket.length < 1) {
+        ticket = null
+    }
 
-    console.log(`AddVideoCount: ${remoteIP} ${postData.id}`)
+    console.log(`AddVideoCount: ${remoteIP} ${videoID} ${ticket}`)
     try {
-        await db.addVideoWatchByID(postData.id)
-        await db.addVideoWatchHistory(remoteIP, remoteIP, postData.id)
+        await db.addVideoWatchByID(videoID)
+        await db.addVideoWatchHistory(ticket, remoteIP, videoID)
         ctx.body = "OK"
     } catch (e) {
         console.log(e)
@@ -147,21 +153,51 @@ router.post('/remove_tag', async (ctx) => {
     ctx.body = "OK"
 })
 
-router.get('/user', async (ctx) => {
-    const remoteIP = ctx.headers['x-forwarded-for'] || ctx.headers["x-real-ip"] || ctx.request.ip
-    console.log(remoteIP)
-    ctx.set('Content-Type', 'text/plain')
-    ctx.status = 200
-    ctx.body = JSON.stringify({
-        name: remoteIP
-    })
+router.post('/history', async (ctx) => {
+    const postData = ctx.request.body
+    console.log(postData)
+
+    const ticket = postData.ticket
+
+    console.log(`history ${ticket}`)
+
+    ctx.body = JSON.stringify(await db.getHistoryByTicket(ticket))
 })
 
-router.get('/recent', async (ctx) => {
-    const remoteIP = ctx.headers['x-forwarded-for'] || ctx.headers["x-real-ip"] || ctx.request.ip
-    console.log(remoteIP)
+router.post('/login', async (ctx) => {
+    const postData = ctx.request.body
+    console.log(postData)
 
-    ctx.body = JSON.stringify(await db.getRecentByUser(remoteIP))
+    const username = postData.username
+    const passhash = postData.password
+
+    try {
+        const data = await db.loginUser(username, passhash)
+        ctx.status = 200
+        ctx.body = JSON.stringify(data)
+    } catch (e) {
+        console.log(e)
+        ctx.status = 403
+        ctx.body = "login failed"
+    }
+})
+
+router.post('/register', async (ctx) => {
+    const postData = ctx.request.body
+    console.log(postData)
+
+    const username = postData.username
+    const passhash = postData.password
+
+    try {
+        const data = await db.addUser(username, passhash)
+        ctx.status = 200
+        ctx.body = JSON.stringify(data)
+    } catch (e) {
+        console.log(e)
+        ctx.status = 403
+        ctx.body = "register failed"
+    }
 })
 
 app.use(koaStatic(path.join(__dirname, "static")))
