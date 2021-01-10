@@ -103,18 +103,65 @@ router.get('/cover', async (ctx) => {
 })
 
 router.post('/video_played', async (ctx) => {
-    let postData = ctx.request.body
+    const remoteIP = ctx.headers['x-forwarded-for'] || ctx.headers["x-real-ip"] || ctx.request.ip
+    console.log(remoteIP)
+
+    const postData = ctx.request.body
     console.log(postData)
 
-    console.log(`AddVideoCount: ${postData.id}`)
+    console.log(`AddVideoCount: ${remoteIP} ${postData.id}`)
     try {
         await db.addVideoWatchByID(postData.id)
+        await db.addVideoWatchHistory(remoteIP, remoteIP, postData.id)
         ctx.body = "OK"
     } catch (e) {
         console.log(e)
         ctx.status = 500
         ctx.body = "Database Error"
     }
+})
+
+router.post('/add_tag', async (ctx) => {
+    const postData = ctx.request.body
+    console.log(postData)
+
+    const videoID = postData.id
+    const tagValue = postData.tag
+
+    console.log(`Add Tag: ${tagValue} to ${videoID}`)
+    await db.addVideoTag(videoID, tagValue)
+
+    ctx.body = "OK"
+})
+
+router.post('/remove_tag', async (ctx) => {
+    const postData = ctx.request.body
+    console.log(postData)
+
+    const videoID = postData.id
+    const tagValue = postData.tag
+
+    console.log(`Remove Tag: ${tagValue} from ${videoID}`)
+    await db.removeVideoTag(videoID, tagValue)
+
+    ctx.body = "OK"
+})
+
+router.get('/user', async (ctx) => {
+    const remoteIP = ctx.headers['x-forwarded-for'] || ctx.headers["x-real-ip"] || ctx.request.ip
+    console.log(remoteIP)
+    ctx.set('Content-Type', 'text/plain')
+    ctx.status = 200
+    ctx.body = JSON.stringify({
+        name: remoteIP
+    })
+})
+
+router.get('/recent', async (ctx) => {
+    const remoteIP = ctx.headers['x-forwarded-for'] || ctx.headers["x-real-ip"] || ctx.request.ip
+    console.log(remoteIP)
+
+    ctx.body = JSON.stringify(await db.getRecentByUser(remoteIP))
 })
 
 app.use(koaStatic(path.join(__dirname, "static")))
