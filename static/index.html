@@ -18,24 +18,29 @@
     <body>
         <div id="app">
             <div id="panel">
-                <div>
+                <p>
                     <input type="text" v-model="keyword">
                     <input type="date" v-model="afterdate">
                     <input type="button" id="search_btn" value="搜索" v-on:click="search">
+                    <input type="button" id="clear_btn" value="全局搜索" v-on:click="clearAndSearch">
                     <input type="button" id="reset_btn" value="清除搜索" v-on:click="clearSearch">
-                    <input type='button' id='stop_play_header_btn' value='停止播放' v-on:click="stopVideo">
+                </p>
+                <p>
                     <input type='button' id='random_shuffle' value="随机排序" v-on:click="randomShuffle">
                     <input type='button' id='count_shuffle' value="计数排序" v-on:click="countShuffle">
                     <input type='button' id='oldest_shuffle' value="最早排序" v-on:click="oldestShuffle">
                     <input type='button' id='latest_shuffle' value="最新排序" v-on:click="latestShuffle">
                     <input type='button' id='small_shuffle' value="最小排序" v-on:click="smallShuffle">
                     <input type='button' id='big_shuffle' value="最大排序" v-on:click="bigShuffle">
-                </div>
+                    <input type='button' id='recent_shuffle' value="最近排序" v-on:click="recentShuffle">
+                    <input type='button' id='watched_shuffle' value="最近看过(私人/在线)" v-on:click="watchedShuffleOnline">
+                    <input type='button' id='watched_shuffle' value="最近看过(全站)" v-on:click="watchedShuffle">
+                </p>
                 <p>
-                    共{{dlists.length}}个结果, 展示{{vlists.length}}条
-
+                    <span>共{{dlists.length}}个结果, 展示{{vlists.length}}条</span>
                     <input type='button' id='prev_page_btn' value='上一页' v-on:click="goPrevPage">
                     <input type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
+                    <input type='button' id='stop_play_header_btn' value='停止播放' v-on:click="stopVideo">
                 </p>
                 <p v-show="servermsg.length>0">
                     {{servermsg}}
@@ -55,7 +60,14 @@
                             <input v-for="rate in rates" type="button" v-bind:value="rate + 'x'" v-on:click="changePlayRate(rate)">
                         </p>
                     </div>
-                    <p>{{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}} 观看计数: {{info.watchcount}}</p>
+                    <p>
+                        {{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}} 观看计数: {{info.watchcount}}
+                        <span v-for="(tagname) in info.tags">
+                            <a v-on:click="filterByTag(tagname)" style="color: blue">#{{tagname}}</a>
+                            <span> </span>
+                        </span>
+                        <input type='text' v-model="pageInputs.tagInputs[index]"> <input type='button' v-on:click="addVideoTag(index)" value="添加tag">
+                    </p>
                 </div>
             </div>
             <div>
@@ -63,40 +75,52 @@
                 <input type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
                 <input type='button' id='stop_play_footer_btn' value='停止播放' v-on:click="stopVideo">
             </div>
+            <div>
+                <p>全部标签</p>
+                <span v-for="(tagInfo) in alltags">
+                    <a v-on:click="filterByTag(tagInfo.tag)" style="color: blue">#{{tagInfo.tag}}</a>
+                    <span>({{tagInfo.count}}) </span>
+                </span>
+            </div>
         </div>
 
         <script>
             let app=new Vue({
                 el:"#app",
                 data:{
-                    rates:[0.5,0.75,1,1.25,1.5,2,2.5],
-                    alists:[],  // All video
-                    dlists:[],  // Searched result
-                    vlists:[],  // Visual result
+                    rates: [0.5,0.75,1,1.25,1.5,2,2.5],
+                    alists: [],  // All video
+                    dlists: [],  // Searched result
+                    vlists: [],  // Visual result
                     showoffset: 0,
                     showsize: 100,
-                    playing:-1,
-                    keyword:'',
-                    afterdate:null,
-                    resultCount:-1,
-                    servermsg:''
+                    playing: -1,
+                    keyword: '',
+                    afterdate: null,
+                    resultCount: -1,
+                    servermsg: '',
+                    webusername: '',
+                    pageInputs: {
+                        tagInputs: new Array(100)
+                    },
+                    alltags: [],
                 },
-                computed:{
+                computed: {
 
                 },
-                methods:{
-                    stopVideo:function() {
+                methods: {
+                    stopVideo() {
                         console.log(`Stop playing video. Previous index: ${this.playing}`)
                         this.playing=-1
                     },
-                    playVideo:function(index) {
+                    playVideo(index) {
                         $.post("/video_played",{
                             id: this.vlists[index].id
                         })
                         console.log(`Play video: ${index}`)
                         this.playing=index
                     },
-                    ReadableSize:function(size) {
+                    ReadableSize(size) {
                         if(size>=1024*1024*1024) {
                             return `${Number(size/1024/1024/1024).toFixed(2)}G`
                         } else if(size>=1024*1024) {
@@ -107,7 +131,7 @@
                             return `${size}B`
                         }
                     },
-                    adjustVideo:function(e) {
+                    adjustVideo(e) {
                         let video_playing=e.srcElement
                         if(video_playing.getAttribute('adjusted')!='yes') {
                             if(video_playing.videoWidth<1024 || video_playing.videoHeight<768) {
@@ -118,16 +142,16 @@
                             }
                         }
                     },
-                    updateVisual:function() {
+                    updateVisual() {
                         this.stopVideo()
                         console.log("update visual")
                         let tmplst = []
-                        for(let i=this.showoffset; i<this.showoffset + this.showsize && i < this.dlists.length; i++) {
+                        for(let i = this.showoffset; i < this.showoffset + this.showsize && i < this.dlists.length; i++) {
                             tmplst.push(this.dlists[i])
                         }
                         this.vlists = tmplst
                     },
-                    randomShuffle:function() {
+                    randomShuffle() {
                         console.log("random shuffle started")
                         // Do a quick Fisher–Yates shuffle
                         let m = this.dlists.length
@@ -141,7 +165,7 @@
                         console.log("random shuffle done.")
                         this.updateVisual()
                     },
-                    countShuffle: function() {
+                    countShuffle() {
                         console.log("count shuffle started.")
                         this.dlists.sort((a, b) => {
                             return b.watchcount - a.watchcount
@@ -149,7 +173,7 @@
                         console.log("count shuffle done.")
                         this.updateVisual()
                     },
-                    latestShuffle: function() {
+                    latestShuffle() {
                         console.log("latest shuffle started.")
                         this.dlists.sort((a, b) => {
                             return new Date(b.mtime) - new Date(a.mtime)
@@ -157,7 +181,7 @@
                         console.log("latest shuffle done.")
                         this.updateVisual()
                     },
-                    oldestShuffle: function() {
+                    oldestShuffle() {
                         console.log("oldest shuffle started.")
                         this.dlists.sort((a, b) => {
                             return new Date(a.mtime) - new Date(b.mtime)
@@ -165,7 +189,7 @@
                         console.log("oldest shuffle done.")
                         this.updateVisual()
                     },
-                    bigShuffle: function() {
+                    bigShuffle() {
                         console.log("big shuffle started.")
                         this.dlists.sort((a, b) => {
                             return new Date(b.fsize) - new Date(a.fsize)
@@ -173,7 +197,7 @@
                         console.log("big shuffle done.")
                         this.updateVisual()
                     },
-                    smallShuffle: function() {
+                    smallShuffle() {
                         console.log("small shuffle started.")
                         this.dlists.sort((a, b) => {
                             return new Date(a.fsize) - new Date(b.fsize)
@@ -181,7 +205,95 @@
                         console.log("small shuffle done.")
                         this.updateVisual()
                     },
-                    goPrevPage:function() {
+                    recentShuffle() {
+                        console.log("recent shuffle started.")
+                        this.dlists.sort((a, b) => {
+                            return new Date(b.updatetime) - new Date(a.updatetime)
+                        })
+                        console.log("recent shuffle done.")
+                        this.updateVisual()
+                    },
+                    watchedShuffle() {
+                        console.log("recent shuffle started.")
+                        this.resultCount=0
+                        this.showoffset=0
+                        const temp = []
+                        for(let i=0;i<this.dlists.length;i++) {
+                            if (this.dlists[i].createtime != this.dlists[i].updatetime) {
+                                ++this.resultCount
+                                temp.push(this.dlists[i])
+                            }
+                        }
+                        this.dlists = temp
+                        this.dlists.sort((a, b) => {
+                            return new Date(b.updatetime) - new Date(a.updatetime)
+                        })
+                        console.log("recent shuffle done.")
+                        this.updateVisual()
+                    },
+                    filterByTag(tagname) {
+                        console.log(`filter by tag ${tagname}`)
+                        this.resultCount=0
+                        this.showoffset=0
+                        const temp = []
+                        for(let i=0;i<this.dlists.length;i++) {
+                            if (this.dlists[i].tags.indexOf(tagname) != -1) {
+                                ++this.resultCount
+                                temp.push(this.dlists[i])
+                            }
+                        }
+                        this.dlists = temp
+                        this.dlists.sort((a, b) => {
+                            return new Date(b.updatetime) - new Date(a.updatetime)
+                        })
+                        console.log("filter by tag done.")
+                        this.updateVisual()
+                    },
+                    addVideoTag(index) {
+                        const videoId = this.vlists[index].id
+                        let newTagValue = (this.pageInputs.tagInputs[index] || "").trim()
+                        console.log(`add video tag ${index} ${videoId} ${newTagValue}`)
+
+                        if (newTagValue == "" || newTagValue == "-" || newTagValue.length < 2) {
+                            console.log("ignore empty value")
+                            return
+                        }
+
+                        if (newTagValue.startsWith("-")) {
+                            newTagValue = newTagValue.substring(1)
+                            if (this.vlists[index].tags.indexOf(newTagValue) == -1) {
+                                console.log("ignore non-existing value")
+                                return
+                            }
+
+                            $.post("/remove_tag", {
+                                id: videoId,
+                                tag: newTagValue
+                            }).then(() => {
+                                let aIdx = this.vlists[index].tags.indexOf(newTagValue)
+                                this.vlists[index].tags.splice(aIdx, 1)
+                                this.generateAllTags()
+                            }).catch((e) => {
+                                console.log(`remote failed to add tag: ${newTagValue}`)
+                            })
+                        } else {
+                            if (this.vlists[index].tags.indexOf(newTagValue) != -1) {
+                                console.log("ignore existing value")
+                                return
+                            }
+
+                            $.post("/add_tag", {
+                                id: videoId,
+                                tag: newTagValue
+                            }).then(() => {
+                                this.vlists[index].tags.push(newTagValue)
+                                this.generateAllTags()
+                            }).catch((e) => {
+                                console.log(`remote failed to add tag: ${newTagValue}`)
+                            })
+                        }
+                    },
+                    goPrevPage() {
                         console.log("prev page.")
                         this.stopVideo()
                         this.showoffset -= this.showsize
@@ -192,7 +304,7 @@
 
                         this.updateVisual()
                     },
-                    goNextPage: function() {
+                    goNextPage() {
                         console.log("next page.")
                         this.stopVideo()
                         if(this.showoffset + this.showsize < this.dlists.length) {
@@ -201,8 +313,8 @@
                             this.updateVisual()
                         }
                     },
-                    search: function() {
-                        console.log(`search: ${this.keyword} ${this.afterdate}`)
+                    search() {
+                        console.log(`search: kw=${this.keyword} after=${this.afterdate}`)
                         this.stopVideo()
                         if(this.keyword.length<1 && this.afterdate==null) {
                             this.clearSearch()
@@ -221,7 +333,15 @@
                         }
                         console.log(`Total=${this.resultCount}`)
                     },
-                    clearSearch:function() {
+                    clearAndSearch() {
+                        this.stopVideo()
+                        this.resultCount=-1
+                        this.showoffset = 0
+                        this.dlists = this.alists
+
+                        this.search()
+                    },
+                    clearSearch() {
                         this.stopVideo()
                         this.keyword=''
                         this.resultCount=-1
@@ -231,19 +351,73 @@
                         this.dlists = this.alists
                         this.updateVisual()
                     },
-                    changePlayRate:function(rate) {
+                    changePlayRate(rate) {
                         console.log(`Playback rate changed to ${rate}`)
                         document.getElementById("video_playing").playbackRate=rate
-                    }
+                    },
+                    generateAllTags() {
+                        console.log("generate tags (browser may freeze)")
+                        const perfBeginTime = new Date()
+
+                        const temp = new Map()
+                        this.alists.forEach((info) => {
+                            info.tags.forEach((tagname) => {
+                                if(temp.has(tagname)) {
+                                    temp.set(tagname, temp.get(tagname) + 1)
+                                } else {
+                                    temp.set(tagname, 1)
+                                }
+                            })
+                        })
+                        this.alltags = Array.from(temp.keys()).map((key) => ({
+                            tag: key,
+                            count: temp.get(key)
+                        })).sort((a, b) => {
+                            if(a.tag.toLowerCase() < b.tag.toLowerCase()) return -1
+                            else if(a.tag.toLowerCase() > b.tag.toLowerCase()) return 1
+                            else return 0
+                        })
+
+                        console.log(`generate tag finished in ${new Date() - perfBeginTime}ms`)
+                    },
+                    watchedShuffleOnline() {
+                        console.log("recent shuffle online started.")
+                        $.get("/list", (data)=>{
+                            this.alists = data
+                            this.showoffset = 0
+                            this.generateAllTags()
+                        },'json').then(() => {
+                            $.get("/recent", (data) => {
+                                const tempList = []
+                                data.forEach((info) => {
+                                    for(let i=0; i<this.alists.length; i++) {
+                                        if (this.alists[i].id == info.id) {
+                                            tempList.push(this.alists[i])
+                                            break;
+                                        }
+                                    }
+                                })
+                                this.dlists = tempList
+                                this.updateVisual()
+                            }, 'json')
+                        })
+                    },
                 }
             })
 
-            $.get("/list",(data)=>{
-                app.alists=data
-                app.dlists=data
-                app.showoffset=0
-                app.showsize=100
-                app.updateVisual()
+            $.get("/user", (data)=>{
+                console.log(data)
+                app.webusername = data.name
+                console.log(`set user name as ${data.name}`)
+            }, 'json')
+
+            $.get("/list", (data)=>{
+                app.alists = data
+                app.dlists = data
+                app.showoffset = 0
+
+                app.generateAllTags()
+                app.randomShuffle()
             },'json').fail((err)=>{
                 console.log(`Failed: ${err}`)
             })
