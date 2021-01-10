@@ -5,7 +5,7 @@
         <title>XV Homepage</title>
 
         <!-- developer version -->
-        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+        <script src="/js/vue.js"></script>
         <script src="/js/jquery-3.3.1.min.js"></script>
         <script src="/js/sha256.js"></script>
 
@@ -80,7 +80,7 @@
             <div id="panel">
                 <p>
                     <div>
-                        <input type="text" v-model="keyword">
+                        <input type="text" v-model="keyword"  @keyup.enter="search">
                         <input type="date" v-model="afterdate">
                         <input class="button" type="button" id="search_btn" value="搜索" v-on:click="search">
                         <input class="button" type="button" id="clear_btn" value="全局搜索" v-on:click="clearAndSearch">
@@ -141,6 +141,7 @@
                         </p>
                         <p>
                             <input class="button" v-for="rate in rates" type="button" v-bind:value="rate + 'x'" v-on:click="changePlayRate(rate)">
+                            <input class="button" type='button' id='stop_play_header_btn' value='停止播放' v-on:click="stopVideo">
                         </p>
                     </div>
                     <p class="text vinfo">
@@ -165,9 +166,13 @@
             <div>
                 <p class="text">全部标签</p>
                 <span v-for="(tagInfo) in alltags">
-                    <a class="tag" v-on:click="filterByTag(tagInfo.tag)">#{{tagInfo.tag}}</a>
+                    <a class="tag" v-on:click="filterAllByTag(tagInfo.tag)">#{{tagInfo.tag}}</a>
                     <span class="tagcount">({{tagInfo.count}}) </span>
                 </span>
+            </div>
+
+            <div class="text siteLabel">
+                Powered by <a class="text" href="https://github.com/Kiritow/xviewer">X Viewer Project</a> {{siteYear}} MIT Licensed
             </div>
         </div>
 
@@ -185,6 +190,8 @@
             const app=new Vue({
                 el: "#app",
                 data: {
+                    siteYear: "",
+
                     rates: [0.5,0.75,1,1.25,1.5,2,2.5],
                     alists: [],  // All video
                     dlists: [],  // Searched result
@@ -221,6 +228,8 @@
                         this.currentUsername = localStorage.getItem("xvcache_username")
                         this.currentTicket = localStorage.getItem("xvcache_ticket")
                     }
+
+                    this.siteYear = new Date().getFullYear()
                 },
                 computed: {
 
@@ -367,6 +376,10 @@
                         console.log("filter by tag done.")
                         this.updateVisual()
                     },
+                    filterAllByTag(tagname) {
+                        this.dlists = this.alists
+                        this.filterByTag(tagname)
+                    },
                     async addVideoTag(index) {
                         const videoId = this.vlists[index].id
                         let newTagValue = (this.pageInputs.tagInputs[index].value || "").trim()
@@ -428,7 +441,7 @@
                                 id
                             }, 'json')
                             this.favset.add(id)
-                            this.updateVisual()
+                            this.favset = new Set(this.favset)
                         } catch (e) {
                             console.log(e)
                         }
@@ -445,7 +458,7 @@
                                 id
                             })
                             this.favset.delete(id)
-                            this.updateVisual()
+                            this.favset = new Set(this.favset)
                         } catch (e) {
                             console.log(e)
                         }
@@ -686,9 +699,4 @@
             })
         </script>
     </body>
-    <footer>
-        <p class="text siteLabel">
-            X Video Project 2021
-        </p>
-    </footer>
 </html>
