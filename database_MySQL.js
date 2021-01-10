@@ -98,26 +98,6 @@ class DBProviderMySQL {
 
     // Begin of API Implementation
 
-    async addObject(objID,objName,objMtime,objSize) {
-        await this.poolQuery('insert into objects(id,filename,mtime,fsize) values (?,?,?,?) ',[objID,objName,objMtime,objSize])
-    }
-
-    async addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID,videoTime) {
-        let conn = null
-        try {
-            conn = await this.getConnection()
-            await this.connBegin(conn)
-            await this.connQuery(conn, 'insert into objects(id,filename,mtime,fsize) values (?,?,?,?) ',[objID,objName,objMtime,objSize])
-            await this.connQuery(conn, 'insert into videos(id,coverid,videotime,uploader,tags,watchcount) values (?,?,?,?,?,?)',[objID,coverID,videoTime,uploader,tags,0])
-            await this.connCommit(conn)
-        } finally {
-            if(conn) {
-                await this.connRollback(conn)
-                conn.release()
-            }
-        }
-    }
-
     // If objID not in objects, {id:undefined} will be resolved.
     async getObject(objID) {
         let results = await this.poolQueryResults('select * from objects where id=?', [objID])

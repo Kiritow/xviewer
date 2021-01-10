@@ -136,31 +136,6 @@ class DatabaseImplSQLite3 {
     async addVideoWatchByID(objID) {
         await this.rawRun("update videos set watchcount=watchcount+1 where id=?",[objID])
     }
-
-    async removeVideoObject(objID) {
-        try {
-            await this.rawExec("BEGIN")
-        } catch (e) {
-            console.log(`SQLite3-DB: Can't start transaction. ${e.toString()}`)
-            throw e
-        }
-
-        try {
-            let result=await this.rawRun(conn,'select coverid from videos where id=?',[objID])
-            await this.rawRun(conn,'delete from videos where id=?',[objID])
-            await this.rawRun(conn,'delete from objects where id=?',[result[0].coverid])
-            await this.rawRun(conn,'delete from objects where id=?',[objID])
-            await this.rawExec("COMMIT")
-        } catch (e) {
-            try {
-                await this.rawExec("ROLLBACK")
-            } catch (e) {
-                console.log(`SQLite3-DB: Rollback Error (suppressed): ${e.toString()}`)
-            }
-
-            throw e
-        }
-    }
 }
 
 module.exports=DatabaseImplSQLite3

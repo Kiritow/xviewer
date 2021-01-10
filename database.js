@@ -12,14 +12,6 @@ class Database {
     }
 
     // All following methods must return Promise.
-    async addObject(objID,objName,objMtime,objSize) {
-        return this.proxy.addObject(objID,objName,objMtime,objSize)
-    }
-
-    async addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID,videoTime) {
-        return this.proxy.addVideoObject(objID,objName,objMtime,objSize,uploader,tags,coverID,videoTime)
-    }
-
     async getObject(objID) {
         return this.proxy.getObject(objID)
     }
