@@ -113,7 +113,7 @@
                     <!-- <input class="button" type='button' id='watched_shuffle_online' value="最近看过(私人/在线)" v-on:click="watchedShuffleOnline"> -->
                     <input class="button disbutton" type='button' value="收藏夹(请登录)" v-if="currentUsername.length < 1" disabled>
                     <input class="button disbutton" type='button' value="最近看过(请登录)" v-if="currentUsername.length < 1" disabled>
-                    <input class="button" type='button' value="收藏夹" v-if="currentUsername.length > 0">
+                    <input class="button" type='button' value="收藏夹" v-if="currentUsername.length > 0" v-on:click="favShuffleOnline">
                     <input class="button" type='button' value="最近看过" v-if="currentUsername.length > 0" v-on:click="watchedShuffleOnline">
                 </p>
                 <p>
@@ -144,7 +144,8 @@
                     </div>
                     <p class="text vinfo">
                         {{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}} 观看计数: {{info.watchcount}}
-                        <input class="button" type='button' value="收藏" v-if="currentUsername.length > 0">
+                        <input class="button" type='button' value="收藏" v-if="currentUsername.length > 0 && !favset.has(info.id)" v-on:click="addFav(info.id)">
+                        <input class="button" type='button' value="取消收藏" v-if="currentUsername.length > 0 && favset.has(info.id)" v-on:click="removeFav(info.id)">
                         <span v-for="(tagname) in info.tags">
                             <a class="tag" v-on:click="filterByTag(tagname)">#{{tagname}}</a>
                             <span> </span>
@@ -210,6 +211,7 @@
                     alists: [],  // All video
                     dlists: [],  // Searched result
                     vlists: [],  // Visual result
+                    favset: new Set(),  // Favorite data
                     showoffset: 0,
                     showsize: 100,
                     playing: -1,
@@ -436,6 +438,40 @@
                             }
                         }
                     },
+                    async addFav(id) {
+                        console.log(`add fav ${id}`)
+                        if (this.favset.has(id)) {
+                            console.log(`ignore existing fav: ${id}`)
+                            return
+                        }
+                        try {
+                            await sendPost("/add_fav", {
+                                ticket: this.currentTicket,
+                                id
+                            }, 'json')
+                            this.favset.add(id)
+                            this.updateVisual()
+                        } catch (e) {
+                            console.log(e)
+                        }
+                    },
+                    async removeFav(id) {
+                        console.log(`remove fav ${id}`)
+                        if (!this.favset.has(id)) {
+                            console.log(`ignore non-existing fav: ${id}`)
+                            return
+                        }
+                        try {
+                            await sendPost("/remove_fav", {
+                                ticket: this.currentTicket,
+                                id
+                            })
+                            this.favset.delete(id)
+                            this.updateVisual()
+                        } catch (e) {
+                            console.log(e)
+                        }
+                    },
                     goPrevPage() {
                         console.log("prev page.")
                         this.stopVideo()
@@ -547,7 +583,38 @@
                                 this.dlists = tempList
                                 this.updateVisual()
                             } catch (e) {
-                                console.log()
+                                console.log(e)
+                            }
+                        })
+                    },
+                    favShuffleOnline() {
+                        console.log("fav shuffle online started")
+                        $.get("/list", (data)=>{
+                            this.alists = data
+                            this.showoffset = 0
+                            this.generateAllTags()
+                        },'json').then(async () => {
+                            try {
+                                let data = await sendPost("/favorites", {
+                                    ticket: this.currentTicket,
+                                }, 'json')
+                                data = JSON.parse(data)
+                                this.favset = new Set(data)
+                                console.log(`fav list fetched, size=${this.favset.size}`)
+
+                                const tempList = []
+                                data.forEach((favid) => {
+                                    for(let i=0; i<this.alists.length; i++) {
+                                        if (this.alists[i].id == favid) {
+                                            tempList.push(this.alists[i])
+                                            break;
+                                        }
+                                    }
+                                })
+                                this.dlists = tempList
+                                this.updateVisual()
+                            } catch (e) {
+                                console.log(e)
                             }
                         })
                     },
