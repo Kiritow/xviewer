@@ -209,6 +209,31 @@ class DBProviderMySQL {
         }
     }
 
+    async addVideoFav(ticket, objID) {
+        let uid = await this.getUserIDByTicket(ticket)
+        if (!uid) {
+            return
+        }
+        await this.poolQuery("insert into userfav(uid, id) values (?,?)", [uid, objID])
+    }
+
+    async removeVideoFav(ticket, objID) {
+        let uid = await this.getUserIDByTicket(ticket)
+        if (!uid) {
+            return
+        }
+        await this.poolQuery("delete from userfav where uid=? and id=?", [uid, objID])
+    }
+
+    async getFavByTicket(ticket) {
+        let uid = await this.getUserIDByTicket(ticket)
+        if (!uid) {
+            return []
+        }
+        const result = await this.poolQueryResults("select * from userfav where uid=? order by createtime desc", [uid])
+        return result.map(info => info.id)
+    }
+
     async getUserIDByTicket(ticket) {
         const result = await this.poolQueryResults("select * from tickets where tid=?", [ticket])
         if (result.length < 1) {

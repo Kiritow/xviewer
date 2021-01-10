@@ -40,6 +40,18 @@ class Database {
         return this.proxy.removeVideoTag(objID, value)
     }
 
+    async addVideoFav(ticket, objID) {
+        return this.proxy.addVideoFav(ticket, objID)
+    }
+
+    async removeVideoFav(ticket, objID) {
+        return this.proxy.removeVideoFav(ticket, objID)
+    }
+    
+    async getFavByTicket(ticket) {
+        return this.proxy.getFavByTicket(ticket)
+    }
+
     async getHistoryByTicket(ticket) {
         return this.proxy.getHistoryByTicket(ticket)
     }

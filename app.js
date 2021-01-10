@@ -153,6 +153,41 @@ router.post('/remove_tag', async (ctx) => {
     ctx.body = "OK"
 })
 
+router.post('/add_fav', async (ctx) => {
+    const postData = ctx.request.body
+    console.log(postData)
+
+    const videoID = postData.id
+    const ticket = postData.ticket
+
+    console.log(`Add Tag: ${ticket} to ${videoID}`)
+    await db.addVideoFav(ticket, videoID)
+
+    ctx.body = "OK"
+})
+
+router.post('/remove_fav', async (ctx) => {
+    const postData = ctx.request.body
+    console.log(postData)
+
+    const videoID = postData.id
+    const ticket = postData.ticket
+
+    console.log(`Remove Tag: ${ticket} from ${videoID}`)
+    await db.removeVideoFav(ticket, videoID)
+
+    ctx.body = "OK"
+})
+
+router.post('/favorites', async (ctx) => {
+    const postData = ctx.request.body
+    console.log(postData)
+
+    const ticket = postData.ticket
+
+    ctx.body = JSON.stringify(await db.getFavByTicket(ticket))
+})
+
 router.post('/history', async (ctx) => {
     const postData = ctx.request.body
     console.log(postData)
