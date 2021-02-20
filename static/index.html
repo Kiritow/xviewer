@@ -80,10 +80,12 @@
             <div id="panel">
                 <p>
                     <div>
-                        <input type="text" v-model="keyword"  @keyup.enter="search">
+                        <input type="text" v-model="keyword"  @keyup.enter="webSearch">
                         <input type="date" v-model="afterdate">
                         <input class="button" type="button" id="search_btn" value="搜索" v-on:click="search">
                         <input class="button" type="button" id="clear_btn" value="全局搜索" v-on:click="clearAndSearch">
+                        <input class="button" type="button" id="web_search_btn" value="搜索/在线" v-on:click="webSearch">
+                        <input class="button" type="button" id="clear_btn" value="全局搜索/在线" v-on:click="clearAndWebSearch">
                         <input class="button" type="button" id="reset_btn" value="清除搜索" v-on:click="clearSearch">
                     </div>
                     <div class="login" v-if="currentUsername.length < 1">

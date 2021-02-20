@@ -324,6 +324,33 @@ const app=new Vue({
             }
             console.log(`Total=${this.resultCount}`)
         },
+        async webSearch() {
+            console.log(`web search: kw=${this.keyword}`)
+            this.stopVideo()
+            if(this.keyword.length < 1) {
+                console.log(`no keyword specified, skipped.`)
+                return
+            }
+            const searchResult = await sendGet(`/search?kw=${this.keyword}`, 'json')
+            console.log(searchResult)
+
+            const currentMap = new Map()
+            this.dlists.forEach((info) => {
+                currentMap.set(info.id, info)
+            })
+
+            this.resultCount=0
+            this.showoffset=0
+            const temp = []
+            searchResult.forEach((vid) => {
+                if(currentMap.has(vid)) {
+                    temp.push(currentMap.get(vid))
+                }
+            })
+            this.dlists = temp
+            this.updateVisual()
+            console.log(`Total=${this.resultCount}`)
+        },
         clearAndSearch() {
             this.stopVideo()
             this.resultCount=-1
@@ -331,6 +358,14 @@ const app=new Vue({
             this.dlists = this.alists
 
             this.search()
+        },
+        clearAndWebSearch() {
+            this.stopVideo()
+            this.resultCount=-1
+            this.showoffset = 0
+            this.dlists = this.alists
+
+            this.webSearch()
         },
         clearSearch() {
             this.stopVideo()
