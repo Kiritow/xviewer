@@ -9,6 +9,8 @@ const koaJson = require('koa-json')
 const koaStatic = require('koa-static')
 const koaPartialContent = require('koa-partial-content')
 
+const elasticsearch = require('elasticsearch')
+
 const Database = require('./database')
 
 // -------------- Configuration ---------------
@@ -29,6 +31,12 @@ console.log("Logger Initialized.")
 
 const XVIEWER_VERSION = JSON.parse(fs.readFileSync("package.json")).version
 const db=new Database(new DatabaseProvider())
+
+const esClient = elasticsearch.Client({
+    host: _settings.eshost,
+    log: 'trace',
+    apiVersion: '7.x'
+})
 
 async function CompareSingleObject(id) {
     try {
@@ -117,6 +125,31 @@ router.get('/cover', async (ctx) => {
         ctx.status = 404
         ctx.body = "Cover Not Found"
     }
+})
+
+router.get('/search', async (ctx) => {
+    const kw = ctx.query.kw
+    if (!kw) {
+        ctx.status = 400
+        ctx.body = "kw required."
+        return
+    }
+
+    const response = await esClient.search({
+        index: _settings.esindex,
+        size: 10000,
+        body: {
+            query: {
+                match: {
+                    name: kw
+                }
+            }
+        }
+    })
+
+    ctx.body = response.hits.hits.map((data) => {
+        return data._source.vid
+    })
 })
 
 router.post('/video_played', async (ctx) => {
