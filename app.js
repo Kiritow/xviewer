@@ -35,6 +35,7 @@ async function CompareSingleObject(id) {
         await promisify(fs.access)(path.join(ROOT_DIR,"objects",id))
     } catch (e) {
         console.log(`ObjectMissing: ${id}`)
+        console.log(e.stack)
         throw e
     }
 }
@@ -46,6 +47,7 @@ async function CompareObjects() {
         pArr.push(CompareSingleObject(objs[i]))
     }
     await Promise.all(pArr)
+    return objs.length
 }
 
 async function CollectData() {
@@ -55,6 +57,21 @@ async function CollectData() {
 const app = new koa()
 app.use(koaBodyParser())
 app.use(koaJson())
+app.use(async (ctx, next) => {
+    console.log(`${ctx.method} ${ctx.url}`)
+    if(ctx.url.startsWith("/video")) {
+        console.log(JSON.stringify(ctx.headers, null, 2))
+    }
+    try {
+        await next()
+        console.log(JSON.stringify(ctx.response.headers, null, 2))
+    } catch (e) {
+        console.log(e)
+        ctx.status = 500
+        ctx.body = "Server Internal Error"
+    }
+})
+
 const part = new koaPartialContent(path.join(ROOT_DIR, "objects"))
 const router = new koaRouter()
 
@@ -236,20 +253,16 @@ router.post('/register', async (ctx) => {
 })
 
 app.use(koaStatic(path.join(__dirname, "static")))
+app.use(router.routes()).use(router.allowedMethods())
+
 
 async function main() {
-    console.log("Initializing disk storage...")
-    await promisify(fs.mkdir)(path.join(ROOT_DIR,"objects"),{recursive:true})
-    await promisify(fs.mkdir)(path.join(ROOT_DIR,"temp"),{recursive:true})
-    console.log("[Done] Storage Initialized.")
-
-    console.log("Comparing database with objects on disk...")
-    await CompareObjects()
-    console.log("[Done] All objects found on disk.")
+    // console.log("Comparing database with objects on disk...")
+    // const cntObjects = await CompareObjects()
+    // console.log(`[Done] All ${cntObjects} objects found on disk.`)
 
     console.log(`Backend version: ${XVIEWER_VERSION}`)
     console.log("Starting server...")
-    app.use(router.routes()).use(router.allowedMethods())
     app.listen(LISTEN_PORT)
 }
 
