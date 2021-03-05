@@ -147,9 +147,9 @@ router.get('/search', async (ctx) => {
         }
     })
 
-    ctx.body = response.hits.hits.map((data) => {
+    ctx.body = Array.from(new Set(response.hits.hits.map((data) => {
         return data._source.vid
-    })
+    })))
 })
 
 router.post('/video_played', async (ctx) => {
