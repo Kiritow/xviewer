@@ -82,18 +82,18 @@
                     <div>
                         <input type="text" v-model="keyword"  @keyup.enter="webSearch">
                         <input type="date" v-model="afterdate">
-                        <input class="button" type="button" id="search_btn" value="搜索" v-on:click="search">
-                        <input class="button" type="button" id="clear_btn" value="全局搜索" v-on:click="clearAndSearch">
-                        <input class="button" type="button" id="web_search_btn" value="搜索/在线" v-on:click="webSearch">
-                        <input class="button" type="button" id="clear_btn" value="全局搜索/在线" v-on:click="clearAndWebSearch">
-                        <input class="button" type="button" id="reset_btn" value="清除搜索" v-on:click="clearSearch">
+                        <input class="button" type="button" value="搜索" v-on:click="search">
+                        <input class="button" type="button" value="全局搜索" v-on:click="clearAndSearch">
+                        <input class="button" type="button" value="搜索/在线" v-on:click="webSearch">
+                        <input class="button" type="button" value="全局搜索/在线" v-on:click="clearAndWebSearch">
+                        <input class="button" type="button" value="清除搜索" v-on:click="clearSearch">
                     </div>
                     <div class="login" v-if="currentUsername.length < 1">
-                        <p class="login"><span class="text">用户名</span> <input type="text" id="login_username" v-model="inputUsername"></p>
-                        <p class="login"><span class="text">密码</span> <input type="password" id="login_password" v-model="inputPassword"></p>
+                        <p class="login"><span class="text">用户名</span> <input type="text" v-model="inputUsername"></p>
+                        <p class="login"><span class="text">密码</span> <input type="password" v-model="inputPassword"></p>
                         <p class="login">
-                            <input class="button" type="button" id="register_btn" value="注册" v-on:click="register" :disabled="loginInProgress" :class="{disbutton: loginInProgress}">
-                            <input class="button" type="button" id="login_btn" value="登录" v-on:click="login" :disabled="loginInProgress" :class="{disbutton: loginInProgress}">
+                            <input class="button" type="button" value="注册" v-on:click="register" :disabled="loginInProgress" :class="{disbutton: loginInProgress}">
+                            <input class="button" type="button" value="登录" v-on:click="login" :disabled="loginInProgress" :class="{disbutton: loginInProgress}">
                         </p>
                         <p class="login" v-if="loginMessage.length > 0">
                             <span class="text">{{loginMessage}}</span>
@@ -101,19 +101,16 @@
                     </div>
                     <div class="login" v-if="currentUsername.length > 0">
                         <p class="login"><span class="text login">已作为 {{currentUsername}} 登录</span></p>
-                        <p class="login"><input class="button" type="button" id="logout_btn" value="注销" v-on:click="logout"></p>
+                        <p class="login"><input class="button" type="button" value="注销" v-on:click="logout"></p>
                     </div>
                 </p>
                 <p>
-                    <input class="button" type='button' id='random_shuffle' value="随机排序" v-on:click="randomShuffle">
-                    <input class="button" type='button' id='count_shuffle' value="计数排序" v-on:click="countShuffle">
-                    <input class="button" type='button' id='oldest_shuffle' value="最早排序" v-on:click="oldestShuffle">
-                    <input class="button" type='button' id='latest_shuffle' value="最新排序" v-on:click="latestShuffle">
-                    <input class="button" type='button' id='small_shuffle' value="最小排序" v-on:click="smallShuffle">
-                    <input class="button" type='button' id='big_shuffle' value="最大排序" v-on:click="bigShuffle">
-                    <input class="button" type='button' id='recent_shuffle' value="最近排序" v-on:click="recentShuffle">
-                    <!-- <input class="button" type='button' id='watched_shuffle' value="最近看过(全站/本地)" v-on:click="watchedShuffle"> -->
-                    <!-- <input class="button" type='button' id='watched_shuffle_online' value="最近看过(私人/在线)" v-on:click="watchedShuffleOnline"> -->
+                    <input class="button" type='button' value="随机排序" v-on:click="randomShuffle">
+                    <input class="button" type='button' value="计数排序" v-on:click="countShuffle">
+                    <input class="button" type='button' value="最早排序" v-on:click="oldestShuffle">
+                    <input class="button" type='button' value="最新排序" v-on:click="latestShuffle">
+                    <input class="button" type='button' value="最小排序" v-on:click="smallShuffle">
+                    <input class="button" type='button' value="最大排序" v-on:click="bigShuffle">
                     <input class="button disbutton" type='button' value="收藏夹(请登录)" v-if="currentUsername.length < 1" disabled>
                     <input class="button disbutton" type='button' value="最近看过(请登录)" v-if="currentUsername.length < 1" disabled>
                     <input class="button" type='button' value="收藏夹/在线" v-if="currentUsername.length > 0" v-on:click="favShuffleOnline">
@@ -121,9 +118,9 @@
                 </p>
                 <p>
                     <span class="text">共{{dlists.length}}个结果, 展示{{vlists.length}}条</span>
-                    <input class="button" type='button' id='prev_page_btn' value='上一页' v-on:click="goPrevPage">
-                    <input class="button" type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
-                    <input class="button" type='button' id='stop_play_header_btn' value='停止播放' v-on:click="stopVideo">
+                    <input class="button" type='button' value='上一页' v-on:click="goPrevPage">
+                    <input class="button" type='button' value='下一页' v-on:click="goNextPage">
+                    <input class="button" type='button' value='停止播放' v-on:click="stopVideo">
                 </p>
                 <p v-show="servermsg.length > 0">
                     {{servermsg}}
@@ -137,13 +134,15 @@
                         </a>
                     </div>
                     <div v-bind:id="'vid_'+index" v-if="playing==index">
-                        <video class="video" id="video_playing" v-bind:src="'/video?id=' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay></video>
+                        <video class="video" v-bind:src="'/video?id=' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay>
+
+                        </video>
                         <p class='text vinfo'>
                             <span class="playing">正在播放: {{info.fname}}</span>
                         </p>
                         <p>
                             <input class="button" v-for="rate in rates" type="button" v-bind:value="rate + 'x'" v-on:click="changePlayRate(rate)">
-                            <input class="button" type='button' id='stop_play_header_btn' value='停止播放' v-on:click="stopVideo">
+                            <input class="button" type='button' value='停止播放' v-on:click="stopVideo">
                         </p>
                     </div>
                     <p class="text vinfo">
@@ -161,9 +160,9 @@
             </div>
             <div v-if="vlists.length > 0">
                 <span class="text">共{{dlists.length}}个结果, 展示{{vlists.length}}条</span>
-                <input class="button" type='button' id='prev_page_btn' value='上一页' v-on:click="goPrevPage">
-                <input class="button" type='button' id='next_page_btn' value='下一页' v-on:click="goNextPage">
-                <input class="button" type='button' id='stop_play_footer_btn' value='停止播放' v-on:click="stopVideo">
+                <input class="button" type='button' value='上一页' v-on:click="goPrevPage">
+                <input class="button" type='button' value='下一页' v-on:click="goNextPage">
+                <input class="button" type='button' value='停止播放' v-on:click="stopVideo">
             </div>
             <div>
                 <p class="text">全部标签</p>
