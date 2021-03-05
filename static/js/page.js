@@ -80,15 +80,60 @@ const app=new Vue({
             }
         },
         adjustVideo(e) {
-            let video_playing=e.srcElement
-            if(video_playing.getAttribute('adjusted')!='yes') {
-                if(video_playing.videoWidth<1024 || video_playing.videoHeight<768) {
-                    console.log(`video_playing: width=${video_playing.videoWidth} height: ${video_playing.videoHeight}`)
-                    video_playing.setAttribute('width',1024)
-                    video_playing.setAttribute('height',768)
-                    video_playing.setAttribute('adjusted','yes')
+            console.log('adjust video')
+            let video=e.srcElement
+            if(video.getAttribute('adjusted') != 'yes') {
+                if(video.videoWidth < 1024 || video.videoHeight < 768) {
+                    console.log(`video: width=${video.videoWidth} height: ${video.videoHeight}`)
+                    video.setAttribute('width',1024)
+                    video.setAttribute('height',768)
+                    video.setAttribute('adjusted','yes')
                 }
             }
+            video.currentTime = 0
+
+            // const eventNames = ["abort", "canplay", "canplaythrough", "durationchange", "emptied", "ended", "error", "interruptbegin", "interruptend", "loadeddata", "loadstart", "mozaudioavailable", "pause", "play", "playing", "progress", "ratechange", "seeked", "seeking", "stalled", "suspend", "timeupdate", "volumechange", "waiting"]
+            // let lastEventTime = new Date()
+            // let waitWatchdogTimer = null
+            // eventNames.forEach((name) => {
+            //     video.addEventListener(name, ()=>{ 
+            //         console.log(`${name} ${new Date() - lastEventTime}ms since last event.`)
+            //         lastEventTime = new Date()
+            //     })
+            // })
+            
+            let playingWatchDog = null
+            let lastTimeUpdate = new Date()
+
+            video.addEventListener("play", ()=>{
+                console.log(`watch dog: play`)
+                playingWatchDog = setInterval(()=>{
+                    if (new Date() - lastTimeUpdate > 5000) {
+                        console.log(`watch dog: 5s since last timeupdate event.`)
+                    }
+                    if (new Date() - lastTimeUpdate > 10000) {
+                        console.log(`watch dog: 10s since last timeupdate event.`)
+                        const lastTime = video.currentTime;
+                        console.log(`video current time is ${lastTime}`)
+                        video.load()
+                        video.currentTime = lastTime
+                        video.play()
+                        lastTimeUpdate = new Date()
+                    }
+                }, 1000)
+            })
+
+            video.addEventListener("timeupdate", ()=>{
+                lastTimeUpdate = new Date()
+            })
+
+            video.addEventListener("pause", ()=>{
+                console.log(`watch dog: pause.`)
+                if (playingWatchDog) {
+                    clearInterval(playingWatchDog)
+                    playingWatchDog = null
+                }
+            })
         },
         updateVisual() {
             this.stopVideo()
