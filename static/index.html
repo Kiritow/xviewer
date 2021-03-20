@@ -137,11 +137,11 @@
                 <div v-for="(info,index) in vlists" v-bind:id="'frame_' + index">
                     <div v-bind:id="'info_' + index"  v-show="playing !== index && !info.hidden" class="text vinfo" v-bind:data-index="index">
                         <a>
-                            <img class="cover" v-bind:src="'/cover?id=' + info.cid" v-on:click="playVideo(index)">
+                            <img class="cover" v-bind:src="getCoverPath(info.cid)" v-on:click="playVideo(index)">
                         </a>
                     </div>
                     <div v-bind:id="'vid_' + index" v-if="playing === index">
-                        <video id="video_playing" class="video" v-bind:src="'/video?id=' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay>
+                        <video id="video_playing" class="video" v-bind:src="getVideoPath(info.id)" v-on:loadedmetadata="adjustVideo($event)" controls autoplay>
 
                         </video>
                         <p class='text vinfo'>
@@ -155,7 +155,7 @@
                             <span class="text">相似视频</span>
                             <div>
                                 <a style="display: block;" v-for="(recinfo, recindex) in playingRecommends">
-                                    <img class="reccover" v-bind:src="'/cover?id=' + recinfo.cid" v-on:click="playRecommendVideo(index, recindex)"> <span class="text">{{recinfo.fname}}</span>
+                                    <img class="reccover" v-bind:src="getCoverPath(recinfo.cid)" v-on:click="playRecommendVideo(index, recindex)"> <span class="text">{{recinfo.fname}}</span>
                                 </a>
                             </div>
                         </div>

@@ -13,6 +13,7 @@ const app=new Vue({
     el: "#app",
     data: {
         siteYear: "",
+        cdnPrefix: "",
 
         rates: [0.5,0.75,1,1.25,1.5,2,2.5],
         alists: [],  // All video
@@ -60,6 +61,40 @@ const app=new Vue({
 
     },
     methods: {
+        getCoverPath(cid) {
+            if (this.cdnPrefix.length > 0) {
+                return `${this.cdnPrefix}/${cid}`
+            } else {
+                return `/cover?id=${cid}`
+            }
+        },
+        getVideoPath(vid) {
+            if (this.cdnPrefix.length > 0) {
+                return `${this.cdnPrefix}/${vid}`
+            } else {
+                return `/video?id=${vid}`
+            }
+        },
+        async reloadAllInfo() {
+            console.log('loading video info...')
+            const res = await sendGet('/list', 'json');
+            console.log(`${res.videos.length} video loaded.`)
+
+            this.alists = res.videos
+            this.cdnPrefix = res.cdnPrefix
+            if (this.cdnPrefix.length > 0) {
+                console.log(`cdn detected: ${this.cdnPrefix}`)
+            }
+
+            this.generateAllTags()
+        },
+        async initPanel() {
+            await this.reloadAllInfo()
+            this.showoffset = 0
+            this.dlists = this.alists
+
+            this.randomShuffle()
+        },
         stopVideo() {
             console.log(`Stop playing video. Previous index: ${this.playing}`)
             const videoElement = document.getElementById('video_playing')
@@ -69,7 +104,7 @@ const app=new Vue({
                 videoElement.currentTime = 0
             }
             if (this.handleReportPlaying !== null) {
-                clearInterval(this.handleReportPlaying)
+                clearTimeout(this.handleReportPlaying)
                 this.handleReportPlaying = null
             }
             this.playingWatchId = 0
@@ -91,24 +126,29 @@ const app=new Vue({
                     let lastCheckTime = new Date()
 
                     this.playingWatchId = res.data.sess
-                    this.handleReportPlaying = setInterval(async ()=>{
+                    const reporter = async (interval) => {
                         try {
-                            console.log(`report video playing ${this.playingWatchId}`)
                             const videoElement = document.getElementById('video_playing')
+
                             if(videoElement && !videoElement.paused) {
                                 totalPlayDuration += new Date() - lastCheckTime
+                                lastCheckTime = new Date()
 
+                                console.log(`report video playing ${this.playingWatchId} ${(totalPlayDuration / 1000).toFixed(2)}`)
                                 await sendPost('/video_playing', {
                                     sess: this.playingWatchId,
                                     duration: parseInt(totalPlayDuration / 1000, 10),
                                 }, 'json')
+                            } else {
+                                lastCheckTime = new Date()
                             }
-
-                            lastCheckTime = new Date()
                         } catch (e) {
                             console.log(e)
                         }
-                    }, 1000)
+
+                        this.handleReportPlaying = setTimeout(reporter, interval, interval)
+                    }
+                    this.handleReportPlaying = setTimeout(reporter, 0, 1000)
                 }
             })
             this.getRecommend(this.vlists[index].id)
@@ -164,6 +204,7 @@ const app=new Vue({
             //     })
             // })
             
+            /*
             let playingWatchDog = null
             let lastTimeUpdate = new Date()
 
@@ -196,6 +237,7 @@ const app=new Vue({
                     playingWatchDog = null
                 }
             })
+            */
         },
         updateVisual() {
             this.stopVideo()
@@ -547,64 +589,58 @@ const app=new Vue({
 
             console.log(`generate tag finished in ${new Date() - perfBeginTime}ms`)
         },
-        watchedShuffleOnline() {
+        async watchedShuffleOnline() {
             console.log("recent shuffle online started.")
-            $.get("/list", (data)=>{
-                this.alists = data
-                this.showoffset = 0
-                this.generateAllTags()
-            },'json').then(async () => {
-                try {
-                    let data = await sendPost("/history", {
-                        ticket: this.currentTicket,
-                    }, 'json')
-                    data = JSON.parse(data)
-                    const tempList = []
-                    data.forEach((info) => {
-                        for(let i=0; i<this.alists.length; i++) {
-                            if (this.alists[i].id == info.id) {
-                                tempList.push(this.alists[i])
-                                break;
-                            }
-                        }
-                    })
-                    this.dlists = tempList
-                    this.updateVisual()
-                } catch (e) {
-                    console.log(e)
-                }
-            })
-        },
-        favShuffleOnline() {
-            console.log("fav shuffle online started")
-            $.get("/list", (data)=>{
-                this.alists = data
-                this.showoffset = 0
-                this.generateAllTags()
-            },'json').then(async () => {
-                try {
-                    let data = await sendPost("/favorites", {
-                        ticket: this.currentTicket,
-                    }, 'json')
-                    data = JSON.parse(data)
-                    this.favset = new Set(data)
-                    console.log(`fav list fetched, size=${this.favset.size}`)
+            await this.reloadAllInfo()
+            this.showoffset = 0
 
-                    const tempList = []
-                    data.forEach((favid) => {
-                        for(let i=0; i<this.alists.length; i++) {
-                            if (this.alists[i].id == favid) {
-                                tempList.push(this.alists[i])
-                                break;
-                            }
+            try {
+                let data = await sendPost("/history", {
+                    ticket: this.currentTicket,
+                }, 'json')
+
+                const tempList = []
+                data.forEach((info) => {
+                    for(let i=0; i<this.alists.length; i++) {
+                        if (this.alists[i].id == info.id) {
+                            tempList.push(this.alists[i])
+                            break;
                         }
-                    })
-                    this.dlists = tempList
-                    this.updateVisual()
-                } catch (e) {
-                    console.log(e)
-                }
-            })
+                    }
+                })
+                this.dlists = tempList
+                this.updateVisual()
+            } catch (e) {
+                console.log(e)
+            }
+        },
+        async favShuffleOnline() {
+            console.log("fav shuffle online started")
+            await this.reloadAllInfo()
+            this.showoffset = 0
+
+            try {
+                const data = await sendPost("/favorites", {
+                    ticket: this.currentTicket,
+                }, 'json')
+
+                this.favset = new Set(data)
+                console.log(`fav list fetched, size=${this.favset.size}`)
+
+                const tempList = []
+                data.forEach((favid) => {
+                    for(let i=0; i<this.alists.length; i++) {
+                        if (this.alists[i].id == favid) {
+                            tempList.push(this.alists[i])
+                            break;
+                        }
+                    }
+                })
+                this.dlists = tempList
+                this.updateVisual()
+            } catch (e) {
+                console.log(e)
+            }
         },
         async register() {
             if (!this.inputUsername || this.inputUsername.length < 1 || !this.inputPassword || this.inputPassword.length < 1) {
@@ -614,11 +650,11 @@ const app=new Vue({
             this.loginInProgress = true
             this.loginMessage = "正在注册..."
             try {
-                let data = await sendPost("/register", {
+                const data = await sendPost("/register", {
                     "username": this.inputUsername,
                     "password": await sha256(this.inputPassword),
                 }, 'json')
-                data = JSON.parse(data)
+
                 console.log(data)
 
                 if (data.code != 0) {
@@ -648,11 +684,11 @@ const app=new Vue({
             this.loginInProgress = true
             this.loginMessage = "正在登录..."
             try {
-                let data = await sendPost("/login", {
+                const data = await sendPost("/login", {
                     "username": this.inputUsername,
                     "password": await sha256(this.inputPassword),
                 }, 'json')
-                data = JSON.parse(data)
+
                 console.log(data)
 
                 if (data.code != 0) {
@@ -684,13 +720,5 @@ const app=new Vue({
     }
 })
 
-$.get("/list", (data)=>{
-    app.alists = data
-    app.dlists = data
-    app.showoffset = 0
 
-    app.generateAllTags()
-    app.randomShuffle()
-},'json').fail((err)=>{
-    console.log(`Failed: ${err}`)
-})
+app.initPanel()

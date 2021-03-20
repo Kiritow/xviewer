@@ -10,7 +10,6 @@ const koaStatic = require('koa-static')
 const koaPartialContent = require('koa-partial-content')
 
 const elasticsearch = require('elasticsearch')
-const uuid = require('uuid')
 
 const Database = require('./database')
 
@@ -18,6 +17,7 @@ const Database = require('./database')
 let _settings=JSON.parse(fs.readFileSync("config/settings.json"))
 const LISTEN_PORT = _settings.port
 const ROOT_DIR = _settings.rootdir
+const CDN_PREFIX = _settings.cdnPrefix || ''
 const DatabaseProvider = require(_settings.dbprovider)
 const LOG_OUTPUT = _settings.logname
 // ---------- End of configuration ------------
@@ -59,10 +59,6 @@ async function CompareObjects() {
     return objs.length
 }
 
-async function CollectData() {
-    return await db.getVideoObjects()
-}
-
 const app = new koa()
 app.use(koaBodyParser())
 app.use(koaJson())
@@ -97,9 +93,11 @@ router.get('/', async (ctx) => {
 
 router.get('/list', async (ctx) => {
     try {
-        let videos = await CollectData()
-        ctx.set('Content-Type', 'text/plain')
-        ctx.body = JSON.stringify(videos)
+        let videos = await db.getVideoObjects()
+        ctx.body = {
+            videos,
+            cdnPrefix: CDN_PREFIX,
+        }
     } catch (e) {
         console.log(e)
         ctx.status = 500
@@ -110,22 +108,32 @@ router.get('/list', async (ctx) => {
 router.get('/video', (ctx) => {
     if(ctx.query.id) {
         console.log(`video ${ctx.query.id}`)
+        if (CDN_PREFIX) {
+            ctx.status = 307
+            ctx.redirect(`${CDN_PREFIX}/${ctx.query.id}`)
+            return
+        }
         return (part.middleware(ctx.query.id))(ctx)
-    } else {
-        ctx.status = 404
-        ctx.body = "Video Not Found"
     }
+    ctx.status = 404
+    ctx.body = "Video Not Found"
 })
 
 router.get('/cover', async (ctx) => {
     if(ctx.query.id) {
         console.log(`cover ${ctx.query.id}`)
+        if (CDN_PREFIX) {
+            ctx.status = 307
+            ctx.redirect(`${CDN_PREFIX}/${ctx.query.id}`)
+            return
+        }
         ctx.set('Content-Type', 'image/png')
         ctx.body = await promisify(fs.readFile)(path.join(ROOT_DIR, "objects", ctx.query.id))
-    } else {
-        ctx.status = 404
-        ctx.body = "Cover Not Found"
+        return
     }
+
+    ctx.status = 404
+    ctx.body = "Cover Not Found"
 })
 
 router.get('/search', async (ctx) => {
@@ -321,7 +329,7 @@ router.post('/favorites', async (ctx) => {
 
     const ticket = postData.ticket
 
-    ctx.body = JSON.stringify(await db.getFavByTicket(ticket))
+    ctx.body = await db.getFavByTicket(ticket)
 })
 
 router.post('/history', async (ctx) => {
@@ -332,7 +340,7 @@ router.post('/history', async (ctx) => {
 
     console.log(`history ${ticket}`)
 
-    ctx.body = JSON.stringify(await db.getHistoryByTicket(ticket))
+    ctx.body = await db.getHistoryByTicket(ticket)
 })
 
 router.post('/login', async (ctx) => {
@@ -345,7 +353,7 @@ router.post('/login', async (ctx) => {
     try {
         const data = await db.loginUser(username, passhash)
         ctx.status = 200
-        ctx.body = JSON.stringify(data)
+        ctx.body = data
     } catch (e) {
         console.log(e)
         ctx.status = 403
@@ -363,7 +371,7 @@ router.post('/register', async (ctx) => {
     try {
         const data = await db.addUser(username, passhash)
         ctx.status = 200
-        ctx.body = JSON.stringify(data)
+        ctx.body = data
     } catch (e) {
         console.log(e)
         ctx.status = 403
