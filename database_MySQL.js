@@ -1,7 +1,6 @@
 const fs = require('fs')
 const mysql = require('mysql')
 const crypto = require('crypto');
-const { RSA_NO_PADDING } = require('constants');
 
 function GetSha256(content) {
     return crypto.createHash('sha256')
@@ -130,8 +129,29 @@ class DBProviderMySQL {
         })
     }
 
+    async getSingleVideoObject(videoId) {
+        const results = await this.poolQueryResults("select videos.id,coverid,filename,mtime,fsize,videotime,watchcount,videos.createtime,videos.updatetime,tags from videos inner join objects on videos.id=objects.id where videos.id=?", [videoId]);
+        if(results.length < 1) {
+            return null;
+        }
+
+        const row = results[0];
+        return {
+            id: row.id,
+            cid: row.coverid,
+            fname: row.filename,
+            mtime: row.mtime,
+            fsize: row.fsize,
+            vtime: row.videotime,
+            watchcount: row.watchcount,
+            createtime: row.createtime,
+            updatetime: row.updatetime,
+            tags: JSON.parse(row.tags || "[]"),
+        }
+    }
+
     async getVideoObjects() {
-        let results = await this.poolQueryResults("select videos.id,coverid,filename,mtime,fsize,videotime,watchcount,videos.createtime,videos.updatetime,tags from videos inner join objects on videos.id=objects.id ", [])
+        const results = await this.poolQueryResults("select videos.id,coverid,filename,mtime,fsize,videotime,watchcount,videos.createtime,videos.updatetime,tags from videos inner join objects on videos.id=objects.id ", [])
         return results.map((row) => {
             return {
                 id: row.id,

@@ -25,6 +25,11 @@
                 border-style: solid;
                 border-color: white;
             }
+            .reccover {
+                width: 10%;
+                border-style: solid;
+                border-color: white;
+            }
             div.login {
                 position: absolute;
                 top: 10px;
@@ -111,6 +116,8 @@
                     <input class="button" type='button' value="最新排序" v-on:click="latestShuffle">
                     <input class="button" type='button' value="最小排序" v-on:click="smallShuffle">
                     <input class="button" type='button' value="最大排序" v-on:click="bigShuffle">
+                    <input class="button" type='button' value="最短排序" v-on:click="shortShuffle">
+                    <input class="button" type='button' value="最长排序" v-on:click="longShuffle">
                     <input class="button disbutton" type='button' value="收藏夹(请登录)" v-if="currentUsername.length < 1" disabled>
                     <input class="button disbutton" type='button' value="最近看过(请登录)" v-if="currentUsername.length < 1" disabled>
                     <input class="button" type='button' value="收藏夹/在线" v-if="currentUsername.length > 0" v-on:click="favShuffleOnline">
@@ -127,14 +134,14 @@
                 </p>
             </div>
             <div>
-                <div v-for="(info,index) in vlists" v-bind:id="index">
-                    <div v-bind:id="'info_'+index"  v-show="playing!=index && !info.hidden" class="text vinfo" v-bind:data-index="index">
+                <div v-for="(info,index) in vlists" v-bind:id="'frame_' + index">
+                    <div v-bind:id="'info_' + index"  v-show="playing !== index && !info.hidden" class="text vinfo" v-bind:data-index="index">
                         <a>
                             <img class="cover" v-bind:src="'/cover?id=' + info.cid" v-on:click="playVideo(index)">
                         </a>
                     </div>
-                    <div v-bind:id="'vid_'+index" v-if="playing==index">
-                        <video class="video" v-bind:src="'/video?id=' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay>
+                    <div v-bind:id="'vid_' + index" v-if="playing === index">
+                        <video id="video_playing" class="video" v-bind:src="'/video?id=' + info.id" v-on:loadedmetadata="adjustVideo($event)" controls autoplay>
 
                         </video>
                         <p class='text vinfo'>
@@ -144,9 +151,17 @@
                             <input class="button" v-for="rate in rates" type="button" v-bind:value="rate + 'x'" v-on:click="changePlayRate(rate)">
                             <input class="button" type='button' value='停止播放' v-on:click="stopVideo">
                         </p>
+                        <div>
+                            <span class="text">相似视频</span>
+                            <div>
+                                <a style="display: block;" v-for="(recinfo, recindex) in playingRecommends">
+                                    <img class="reccover" v-bind:src="'/cover?id=' + recinfo.cid" v-on:click="playRecommendVideo(index, recindex)"> <span class="text">{{recinfo.fname}}</span>
+                                </a>
+                            </div>
+                        </div>
                     </div>
                     <p class="text vinfo">
-                        {{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 修改日期: {{new Date(info.mtime).toLocaleString()}} 观看计数: {{info.watchcount}}
+                        {{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 时长: {{ReadableDuration(info.vtime)}} 修改日期: {{new Date(info.mtime).toLocaleString()}} 观看计数: {{info.watchcount}}
                         <input class="button" type='button' value="收藏" v-if="currentUsername.length > 0 && !favset.has(info.id)" v-on:click="addFav(info.id)">
                         <input class="button" type='button' value="取消收藏" v-if="currentUsername.length > 0 && favset.has(info.id)" v-on:click="removeFav(info.id)">
                         <span v-for="(tagname) in info.tags">

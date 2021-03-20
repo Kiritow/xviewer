@@ -29,6 +29,7 @@ const app=new Vue({
             tagInputs: []
         },
         alltags: [],
+        playingRecommends: [],
 
         loginInProgress: false,
         inputUsername: "",
@@ -58,15 +59,31 @@ const app=new Vue({
     methods: {
         stopVideo() {
             console.log(`Stop playing video. Previous index: ${this.playing}`)
+            const videoElement = document.getElementById('video_playing')
+            if(videoElement) {
+                console.log(`video element found. Removing it...`)
+                videoElement.pause()
+                videoElement.currentTime = 0
+            }
             this.playing=-1
         },
-        playVideo(index) {
-            $.post("/video_played",{
+        async analysisVideoPlayed(index) {
+            return sendPost("/video_played", {
                 id: this.vlists[index].id,
                 ticket: this.currentTicket,
-            })
-            console.log(`Play video: ${index}`)
+            }, 'json')
+        },
+        playVideo(index) {
+            this.analysisVideoPlayed(index)
+            this.getRecommend(this.vlists[index].id)
+            console.log(`Play video: ${index} ${this.vlists[index].id}`)
             this.playing=index
+        },
+        playRecommendVideo(index, recIndex) {
+            this.stopVideo();
+            this.vlists[index] = this.playingRecommends[recIndex]
+            console.log(`Play recommend: ${index} ${recIndex}`)
+            this.playVideo(index)
         },
         ReadableSize(size) {
             if(size>=1024*1024*1024) {
@@ -78,6 +95,15 @@ const app=new Vue({
             } else {
                 return `${size}B`
             }
+        },
+        ReadableDuration(second) {
+            if (second < 60) {
+                return `${parseInt(second, 10)}s`
+            }
+            if (second < 3600) {
+                return `${parseInt(second / 60, 10)}分${parseInt(second % 60, 10)}秒`
+            }
+            return `${parseInt(second / 3600, 10)}小时${parseInt((second % 3600) / 60, 10)}分${parseInt(second % 60, 10)}秒`
         },
         adjustVideo(e) {
             console.log('adjust video')
@@ -196,6 +222,22 @@ const app=new Vue({
                 return new Date(a.fsize) - new Date(b.fsize)
             })
             console.log("small shuffle done.")
+            this.updateVisual()
+        },
+        longShuffle() {
+            console.log("long shuffle started.")
+            this.dlists.sort((a, b) => {
+                return new Date(b.vtime) - new Date(a.vtime)
+            })
+            console.log("long shuffle done.")
+            this.updateVisual()
+        },
+        shortShuffle() {
+            console.log("short shuffle started.")
+            this.dlists.sort((a, b) => {
+                return new Date(a.vtime) - new Date(b.vtime)
+            })
+            console.log("short shuffle done.")
             this.updateVisual()
         },
         recentShuffle() {
@@ -395,6 +437,24 @@ const app=new Vue({
             this.dlists = temp
             this.updateVisual()
             console.log(`Total=${this.resultCount}`)
+        },
+        async getRecommend(id) {
+            console.log(`recommend: ${id}`)
+            const searchResult = await sendGet(`/recommend?from=${id}`, 'json')
+            console.log(searchResult)
+
+            const currentMap = new Map()
+            this.alists.forEach((info) => {
+                currentMap.set(info.id, info)
+            })
+
+            const temp = []
+            searchResult.forEach((vid) => {
+                if(currentMap.has(vid)) {
+                    temp.push(currentMap.get(vid))
+                }
+            })
+            this.playingRecommends = temp
         },
         clearAndSearch() {
             this.stopVideo()

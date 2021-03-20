@@ -147,9 +147,56 @@ router.get('/search', async (ctx) => {
         }
     })
 
-    ctx.body = Array.from(new Set(response.hits.hits.map((data) => {
-        return data._source.vid
-    })))
+    const tempArr = []
+    const tempSet = new Set()
+    response.hits.hits.forEach((data) => {
+        if(!tempSet.has(data._source.vid)) {
+            tempSet.add(data._source.vid)
+            tempArr.push(data._source.vid)
+        }
+    })
+
+    ctx.body = tempArr
+})
+
+router.get('/recommend', async (ctx) => {
+    const fromId = ctx.query.from
+    if (!fromId) {
+        ctx.status = 400
+        ctx.body = "from required."
+        return
+    }
+
+    const info = await db.getSingleVideoObject(fromId);
+    if(!info) {
+        ctx.body = []
+        return
+    }
+
+    const response = await esClient.search({
+        index: _settings.esindex,
+        size: 10,
+        body: {
+            query: {
+                match: {
+                    name: {
+                        query: info.fname,
+                    }
+                }
+            }
+        }
+    })
+
+    const tempArr = []
+    const tempSet = new Set()
+    response.hits.hits.forEach((data) => {
+        if(fromId !== data._source.vid && !tempSet.has(data._source.vid)) {
+            tempSet.add(data._source.vid)
+            tempArr.push(data._source.vid)
+        }
+    })
+
+    ctx.body = tempArr
 })
 
 router.post('/video_played', async (ctx) => {
