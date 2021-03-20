@@ -8,6 +8,7 @@ function sendGet(url, dataType) {
         $.get(url, dataType).then(resolve).catch(reject)
     })
 }
+
 const app=new Vue({
     el: "#app",
     data: {
@@ -21,6 +22,8 @@ const app=new Vue({
         showoffset: 0,
         showsize: 100,
         playing: -1,
+        playingWatchId: null,
+        handleReportPlaying: null,
         keyword: '',
         afterdate: null,
         resultCount: -1,
@@ -65,7 +68,12 @@ const app=new Vue({
                 videoElement.pause()
                 videoElement.currentTime = 0
             }
-            this.playing=-1
+            if (this.handleReportPlaying !== null) {
+                clearInterval(this.handleReportPlaying)
+                this.handleReportPlaying = null
+            }
+            this.playingWatchId = 0
+            this.playing = -1
         },
         async analysisVideoPlayed(index) {
             return sendPost("/video_played", {
@@ -74,7 +82,35 @@ const app=new Vue({
             }, 'json')
         },
         playVideo(index) {
-            this.analysisVideoPlayed(index)
+            this.stopVideo()
+            this.analysisVideoPlayed(index).then((res) => {
+                console.log(res)
+                if (res.code === 0) {
+                    console.log(`Reporter started, watchId: ${this.playingWatchId}`)
+                    let totalPlayDuration = 0
+                    let lastCheckTime = new Date()
+
+                    this.playingWatchId = res.data.sess
+                    this.handleReportPlaying = setInterval(async ()=>{
+                        try {
+                            console.log(`report video playing ${this.playingWatchId}`)
+                            const videoElement = document.getElementById('video_playing')
+                            if(videoElement && !videoElement.paused) {
+                                totalPlayDuration += new Date() - lastCheckTime
+
+                                await sendPost('/video_playing', {
+                                    sess: this.playingWatchId,
+                                    duration: parseInt(totalPlayDuration / 1000, 10),
+                                }, 'json')
+                            }
+
+                            lastCheckTime = new Date()
+                        } catch (e) {
+                            console.log(e)
+                        }
+                    }, 1000)
+                }
+            })
             this.getRecommend(this.vlists[index].id)
             console.log(`Play video: ${index} ${this.vlists[index].id}`)
             this.playing=index

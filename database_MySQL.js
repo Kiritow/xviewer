@@ -178,7 +178,12 @@ class DBProviderMySQL {
             uid = await this.getUserIDByTicket(ticket)
             if (uid === null) uid = ""
         }
-        await this.poolQuery("insert into history(username, host, id) values (?,?,?)", [uid, remoteIP, objID])
+        const result = await this.poolQueryResults("insert into history(username, host, id) values (?,?,?)", [uid, remoteIP, objID]);
+        return result.insertId;
+    }
+
+    async updateVideoWatchHistory(watchId, duration) {
+        await this.poolQuery("update history set watchtime=? where watchid=?", [duration, watchId])
     }
 
     async addVideoTag(objID, value) {

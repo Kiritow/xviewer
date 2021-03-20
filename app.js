@@ -10,6 +10,7 @@ const koaStatic = require('koa-static')
 const koaPartialContent = require('koa-partial-content')
 
 const elasticsearch = require('elasticsearch')
+const uuid = require('uuid')
 
 const Database = require('./database')
 
@@ -215,12 +216,50 @@ router.post('/video_played', async (ctx) => {
     console.log(`AddVideoCount: ${remoteIP} ${videoID} ${ticket}`)
     try {
         await db.addVideoWatchByID(videoID)
-        await db.addVideoWatchHistory(ticket, remoteIP, videoID)
-        ctx.body = "OK"
+        const insertId = await db.addVideoWatchHistory(ticket, remoteIP, videoID)
+        ctx.body = {
+            code: 0,
+            message: 'success',
+            data: {
+                sess: insertId
+            }
+        }
     } catch (e) {
         console.log(e)
         ctx.status = 500
-        ctx.body = "Database Error"
+        ctx.body = {
+            code: -1,
+            message: "Database Error"
+        }
+    }
+})
+
+router.post('/video_playing', async (ctx) => {
+    const postData = ctx.request.body
+    console.log(postData)
+
+    const { sess, duration } = postData
+    if (!sess || !duration) {
+        ctx.body = {
+            code: -1,
+            message: "sess, duration required."
+        }
+        return
+    }
+
+    try {
+        await db.updateVideoWatchHistory(sess, duration);
+        ctx.body = {
+            code: 0,
+            message: 'success',
+        }
+    } catch (e) {
+        console.log(e)
+        ctx.status = 500
+        ctx.body = {
+            code: -1,
+            message: "Database Error"
+        }
     }
 })
 

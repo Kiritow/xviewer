@@ -35,6 +35,10 @@ class Database {
     async addVideoWatchHistory(ticket, remoteIP, objID) {
         return this.proxy.addVideoWatchHistory(ticket, remoteIP, objID)
     }
+
+    async updateVideoWatchHistory(watchId, duration) {
+        return this.proxy.updateVideoWatchHistory(watchId, duration)
+    }
     
     async addVideoTag(objID, value) {
         return this.proxy.addVideoTag(objID, value)
