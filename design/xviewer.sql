@@ -55,11 +55,15 @@ DROP TABLE IF EXISTS `history`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `history` (
+  `watchid` int(11) NOT NULL AUTO_INCREMENT,
   `username` varchar(255) NOT NULL COMMENT '用户名',
   `host` varchar(255) NOT NULL DEFAULT '' COMMENT '访问地址',
   `id` varchar(255) NOT NULL DEFAULT '' COMMENT '视频ID',
-  `createtime` timestamp NOT NULL DEFAULT current_timestamp() COMMENT '访问时间'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='用户访问日志';
+  `watchtime` int(11) NOT NULL DEFAULT 0,
+  `createtime` timestamp NOT NULL DEFAULT current_timestamp() COMMENT '访问时间',
+  `updatetime` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`watchid`)
+) ENGINE=InnoDB AUTO_INCREMENT=1126 DEFAULT CHARSET=utf8 COMMENT='用户访问日志';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -180,4 +184,4 @@ CREATE TABLE `videos` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-01-10 17:06:52
+-- Dump completed on 2021-03-21 10:57:25
