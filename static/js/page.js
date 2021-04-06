@@ -8,6 +8,16 @@ function sendGet(url, dataType) {
         $.get(url, dataType).then(resolve).catch(reject)
     })
 }
+function ArrayRandomShuffle(arr) {
+    // Do a quick Fisher–Yates shuffle
+    let m = arr.length;
+    while(m) {
+        const i = Math.floor(Math.random() * m--);
+        const temp = arr[m];
+        arr[m] = arr[i];
+        arr[i] = temp;
+    }
+}
 
 const app=new Vue({
     el: "#app",
@@ -88,12 +98,51 @@ const app=new Vue({
 
             this.generateAllTags()
         },
+        async preferredShuffleOnline() {
+            const result = await sendPost('/preferred', {
+                ticket: this.currentTicket,
+            }, 'json');
+            console.log(`${result.data.videos.length} preferred videos`)
+            const resultSet = new Set(result.data.videos);
+
+            this.dlists = []
+            const laterArr = [];
+
+            this.alists.forEach((info) => {
+                if (resultSet.has(info.id)) {
+                    this.dlists.push(info)
+                } else {
+                    laterArr.push(info)
+                }
+            })
+
+            while(this.dlists.length < 100) {
+                if(laterArr.length > 0) {
+                    this.dlists.push(laterArr.splice(Math.floor(laterArr.length * Math.random()), 1)[0]);
+                } else {
+                    break;
+                }
+            }
+            ArrayRandomShuffle(this.dlists);
+            ArrayRandomShuffle(laterArr);
+            this.dlists = this.dlists.concat(laterArr);
+            this.updateVisual();
+        },
         async initPanel() {
             await this.reloadAllInfo()
             this.showoffset = 0
-            this.dlists = this.alists
 
-            this.randomShuffle()
+            if (this.currentUsername.length > 0) {
+                try {
+                    this.preferredShuffleOnline();
+                } catch (e) {
+                    this.dlists = this.alists;
+                    this.randomShuffle();
+                }
+            } else {
+                this.dlists = this.alists
+                this.randomShuffle()
+            }
         },
         stopVideo() {
             console.log(`Stop playing video. Previous index: ${this.playing}`)
@@ -250,16 +299,9 @@ const app=new Vue({
         },
         randomShuffle() {
             console.log("random shuffle started")
-            // Do a quick Fisher–Yates shuffle
-            let m = this.dlists.length
-            while(m) {
-                let i = Math.floor(Math.random() * m--)
-
-                let temp = this.dlists[m]
-                this.dlists[m] = this.dlists[i]
-                this.dlists[i] = temp
-            }
+            ArrayRandomShuffle(this.dlists);
             console.log("random shuffle done.")
+            this.showoffset = 0;
             this.updateVisual()
         },
         countShuffle() {
@@ -268,6 +310,7 @@ const app=new Vue({
                 return b.watchcount - a.watchcount
             })
             console.log("count shuffle done.")
+            this.showoffset = 0;
             this.updateVisual()
         },
         latestShuffle() {
@@ -276,6 +319,7 @@ const app=new Vue({
                 return new Date(b.mtime) - new Date(a.mtime)
             })
             console.log("latest shuffle done.")
+            this.showoffset = 0;
             this.updateVisual()
         },
         oldestShuffle() {
@@ -284,6 +328,7 @@ const app=new Vue({
                 return new Date(a.mtime) - new Date(b.mtime)
             })
             console.log("oldest shuffle done.")
+            this.showoffset = 0;
             this.updateVisual()
         },
         bigShuffle() {
@@ -292,6 +337,7 @@ const app=new Vue({
                 return new Date(b.fsize) - new Date(a.fsize)
             })
             console.log("big shuffle done.")
+            this.showoffset = 0;
             this.updateVisual()
         },
         smallShuffle() {
@@ -300,6 +346,7 @@ const app=new Vue({
                 return new Date(a.fsize) - new Date(b.fsize)
             })
             console.log("small shuffle done.")
+            this.showoffset = 0;
             this.updateVisual()
         },
         longShuffle() {
@@ -308,6 +355,7 @@ const app=new Vue({
                 return new Date(b.vtime) - new Date(a.vtime)
             })
             console.log("long shuffle done.")
+            this.showoffset = 0;
             this.updateVisual()
         },
         shortShuffle() {
@@ -316,6 +364,7 @@ const app=new Vue({
                 return new Date(a.vtime) - new Date(b.vtime)
             })
             console.log("short shuffle done.")
+            this.showoffset = 0;
             this.updateVisual()
         },
         recentShuffle() {
@@ -324,12 +373,12 @@ const app=new Vue({
                 return new Date(b.updatetime) - new Date(a.updatetime)
             })
             console.log("recent shuffle done.")
+            this.showoffset = 0;
             this.updateVisual()
         },
         watchedShuffle() {
             console.log("recent shuffle started.")
-            this.resultCount=0
-            this.showoffset=0
+            this.resultCount = 0
             const temp = []
             for(let i=0;i<this.dlists.length;i++) {
                 if (this.dlists[i].createtime != this.dlists[i].updatetime) {
@@ -342,12 +391,13 @@ const app=new Vue({
                 return new Date(b.updatetime) - new Date(a.updatetime)
             })
             console.log("recent shuffle done.")
+            this.showoffset = 0;
             this.updateVisual()
         },
         filterByTag(tagname) {
             console.log(`filter by tag ${tagname}`)
-            this.resultCount=0
-            this.showoffset=0
+            this.resultCount = 0
+            this.showoffset = 0
             const temp = []
             for(let i=0;i<this.dlists.length;i++) {
                 if (this.dlists[i].tags.indexOf(tagname) != -1) {
@@ -452,13 +502,14 @@ const app=new Vue({
         goPrevPage() {
             console.log("prev page.")
             this.stopVideo()
-            this.showoffset -= this.showsize
-            if(this.showoffset<1) {
-                this.showoffset=0
+            if (this.showoffset > 0) {
+                this.showoffset -= this.showsize
+                if(this.showoffset < 1) {
+                    this.showoffset = 0
+                }
+                console.log(this.showoffset, this.showsize)
+                this.updateVisual()
             }
-            console.log(this.showoffset, this.showsize)
-
-            this.updateVisual()
         },
         goNextPage() {
             console.log("next page.")
@@ -475,8 +526,8 @@ const app=new Vue({
             if(this.keyword.length<1 && this.afterdate==null) {
                 this.clearSearch()
             } else {
-                this.resultCount=0
-                this.showoffset=0
+                this.resultCount = 0
+                this.showoffset = 0
                 let temp = []
                 for(let i=0;i<this.dlists.length;i++) {
                     if(this.dlists[i].fname.toLowerCase().indexOf(this.keyword.toLowerCase())!=-1 && (!this.afterdate || new Date(this.dlists[i].mtime) -new Date(this.afterdate)>=0) ) {

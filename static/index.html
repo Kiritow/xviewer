@@ -137,7 +137,7 @@
                 <div v-for="(info,index) in vlists" v-bind:id="'frame_' + index">
                     <div v-bind:id="'info_' + index"  v-show="playing !== index && !info.hidden" class="text vinfo" v-bind:data-index="index">
                         <a>
-                            <img class="cover" v-bind:src="getCoverPath(info.cid)" v-on:click="playVideo(index)">
+                            <img class="cover" v-bind:src="getCoverPath(info.cid)" v-on:click="playVideo(index)" loading=lazy>
                         </a>
                     </div>
                     <div v-bind:id="'vid_' + index" v-if="playing === index">
@@ -151,16 +151,8 @@
                             <input class="button" v-for="rate in rates" type="button" v-bind:value="rate + 'x'" v-on:click="changePlayRate(rate)">
                             <input class="button" type='button' value='停止播放' v-on:click="stopVideo">
                         </p>
-                        <div>
-                            <span class="text">相似视频</span>
-                            <div>
-                                <a style="display: block;" v-for="(recinfo, recindex) in playingRecommends">
-                                    <img class="reccover" v-bind:src="getCoverPath(recinfo.cid)" v-on:click="playRecommendVideo(index, recindex)"> <span class="text">{{recinfo.fname}}</span>
-                                </a>
-                            </div>
-                        </div>
                     </div>
-                    <p class="text vinfo">
+                    <div class="text vinfo">
                         {{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 时长: {{ReadableDuration(info.vtime)}} 修改日期: {{new Date(info.mtime).toLocaleString()}} 观看计数: {{info.watchcount}}
                         <input class="button" type='button' value="收藏" v-if="currentUsername.length > 0 && !favset.has(info.id)" v-on:click="addFav(info.id)">
                         <input class="button" type='button' value="取消收藏" v-if="currentUsername.length > 0 && favset.has(info.id)" v-on:click="removeFav(info.id)">
@@ -170,7 +162,15 @@
                         </span>
                         <input type='text' v-model="pageInputs.tagInputs[index].value" @keyup.enter="addVideoTag(index)" >
                         <input class="button" type='button' v-on:click="addVideoTag(index)" value="添加tag">
-                    </p>
+                    </div>
+                    <div v-if="playing === index">
+                        <span class="text">相似视频</span>
+                        <div>
+                            <a style="display: block;" v-for="(recinfo, recindex) in playingRecommends">
+                                <img class="reccover" v-bind:src="getCoverPath(recinfo.cid)" v-on:click="playRecommendVideo(index, recindex)" loading=lazy> <span class="text">{{recinfo.fname}}</span>
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div v-if="vlists.length > 0">

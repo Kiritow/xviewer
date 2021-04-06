@@ -136,6 +136,20 @@ router.get('/cover', async (ctx) => {
     ctx.body = "Cover Not Found"
 })
 
+async function ESSimpleSearch(keyword, size) {
+    return (await esClient.search({
+        index: _settings.esindex,
+        size: size,
+        body: {
+            query: {
+                match: {
+                    name: keyword
+                }
+            }
+        }
+    })).hits.hits;
+}
+
 router.get('/search', async (ctx) => {
     const kw = ctx.query.kw
     if (!kw) {
@@ -144,21 +158,11 @@ router.get('/search', async (ctx) => {
         return
     }
 
-    const response = await esClient.search({
-        index: _settings.esindex,
-        size: 10000,
-        body: {
-            query: {
-                match: {
-                    name: kw
-                }
-            }
-        }
-    })
+    const response = await ESSimpleSearch(kw, 10000)
 
     const tempArr = []
     const tempSet = new Set()
-    response.hits.hits.forEach((data) => {
+    response.forEach((data) => {
         if(!tempSet.has(data._source.vid)) {
             tempSet.add(data._source.vid)
             tempArr.push(data._source.vid)
@@ -182,23 +186,11 @@ router.get('/recommend', async (ctx) => {
         return
     }
 
-    const response = await esClient.search({
-        index: _settings.esindex,
-        size: 10,
-        body: {
-            query: {
-                match: {
-                    name: {
-                        query: info.fname,
-                    }
-                }
-            }
-        }
-    })
+    const response = await ESSimpleSearch(info.fname, 10)
 
     const tempArr = []
     const tempSet = new Set()
-    response.hits.hits.forEach((data) => {
+    response.forEach((data) => {
         if(fromId !== data._source.vid && !tempSet.has(data._source.vid)) {
             tempSet.add(data._source.vid)
             tempArr.push(data._source.vid)
@@ -206,6 +198,75 @@ router.get('/recommend', async (ctx) => {
     })
 
     ctx.body = tempArr
+})
+
+router.post('/preferred', async (ctx) => {
+    const postData = ctx.request.body
+    console.log(postData)
+
+    let ticket = postData.ticket
+    if (!ticket || ticket.length < 1) {
+        ticket = null
+    }
+
+    try {
+        const favs = await db.getFavByTicket(ticket)
+        const history = await db.getHistoryByTicket(ticket)
+
+        const tempSet = new Set()
+        for(let i=0; i<5; i++) {
+            if (favs.length > 0) {
+                tempSet.add(favs[Math.floor(Math.random() * favs.length)])
+            }
+        }
+
+        for(let i=0; i<5; i++) {
+            if (history.length > 0) {
+                tempSet.add(history[Math.floor(Math.random() * history.length)].id)
+            }
+        }
+
+        if(tempSet.size < 1) {
+            ctx.body = {
+                code: 0,
+                message: 'success',
+                data: {
+                    videos: [],
+                }
+            }
+            return
+        }
+
+        const infoArr = await Promise.all(Array.from(tempSet).map((id) => db.getSingleVideoObject(id)))
+        const suggestArr = await Promise.all(infoArr.map((info) => ESSimpleSearch(info.fname, 10)))
+
+        const finalSet = new Set()
+        const sourceShowRate = 30
+        suggestArr.forEach((hits) => {
+            hits.forEach((data) => {
+                if (!tempSet.has(data._source.vid)) {
+                    finalSet.add(data._source.vid)
+                } else if (Math.random() * 100 >= sourceShowRate) {
+                    finalSet.add(data._source.vid)
+                }
+            })
+        })
+
+        ctx.body = {
+            code: 0,
+            message: 'success',
+            data: {
+                videos: Array.from(finalSet),
+            }
+        }
+    } catch (e) {
+        console.log(e)
+        ctx.status = 500
+        ctx.body = {
+            code: -1,
+            message: "Database Error"
+        }
+    }
 })
 
 router.post('/video_played', async (ctx) => {
