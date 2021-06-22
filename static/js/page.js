@@ -72,14 +72,14 @@ const app=new Vue({
     },
     methods: {
         getCoverPath(cid) {
-            if (this.cdnPrefix.length > 0) {
+            if (this.cdnPrefix && this.cdnPrefix.length > 0) {
                 return `${this.cdnPrefix}/${cid}`
             } else {
                 return `/cover?id=${cid}`
             }
         },
         getVideoPath(vid) {
-            if (this.cdnPrefix.length > 0) {
+            if (this.cdnPrefix && this.cdnPrefix.length > 0) {
                 return `${this.cdnPrefix}/${vid}`
             } else {
                 return `/video?id=${vid}`
@@ -92,7 +92,7 @@ const app=new Vue({
 
             this.alists = res.videos
             this.cdnPrefix = res.cdnPrefix
-            if (this.cdnPrefix.length > 0) {
+            if (this.cdnPrefix && this.cdnPrefix.length > 0) {
                 console.log(`cdn detected: ${this.cdnPrefix}`)
             }
 

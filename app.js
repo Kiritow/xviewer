@@ -19,13 +19,13 @@ const CDN_PREFIX = process.env.CDN_PREFIX;
 const ES_HOST = process.env.ES_HOST;
 const ES_INDEX = process.env.ES_INDEX;
 const XVIEWER_VERSION = JSON.parse(fs.readFileSync("package.json")).version
-const db=new Database(new DaoClass({
+const db = new DaoClass({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     user: process.env.DB_USER,
     password: process.env.DB_PASS,
     database: process.env.DB_NAME,
-}))
+});
 
 const esClient = elasticsearch.Client({
     host: ES_HOST,
