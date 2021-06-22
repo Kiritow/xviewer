@@ -255,7 +255,7 @@ class DBProviderMySQL {
         if (!uid) {
             return []
         }
-        const result = await this.poolQueryResults("select * from userfav where uid=? order by createtime desc", [uid])
+        const result = await this.poolQueryResults("select * from userfav where uid=? order by updatetime desc", [uid])
         return result.map(info => info.id)
     }
 
@@ -272,11 +272,11 @@ class DBProviderMySQL {
         if (!uid) {
             return []
         }
-        let results = await this.poolQueryResults("select id from history where username=? group by id order by createtime desc", [uid])
+        let results = await this.poolQueryResults("select id, max(updatetime) as lasttime from history where username=? group by id order by max(updatetime) desc", [uid])
         return results.map((row) => {
             return {
                 id: row.id,
-                createtime: row.createtime
+                lasttime: row.lasttime
             }
         })
     }
