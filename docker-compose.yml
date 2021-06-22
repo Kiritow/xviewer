@@ -1,0 +1,30 @@
+version: '3'
+services:
+    db:
+        image: docker.io/mariadb:latest
+        restart: always
+        environment:
+            MYSQL_ROOT_PASSWORD: xviewer_default_password
+        volumes:
+            - datavol:/var/lib/mysql
+    es:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.13.2
+        environment:
+            discovery.type: single-node
+    app:
+        image: xviewer:latest
+        restart: always
+        environment:
+            DB_HOST: db
+            DB_PORT: 3306
+            DB_USER: root
+            DB_PASS: xviewer_default_password
+            DB_NAME: xviewer
+            ES_HOST: es
+            ES_INDEX: test-video-index
+        ports:
+            - 9889:80
+        volumes:
+            - /mnt/faaq:/data
+volumes:
+    datavol:
