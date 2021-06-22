@@ -11,53 +11,27 @@ const koaPartialContent = require('koa-partial-content')
 
 const elasticsearch = require('elasticsearch')
 
-const Database = require('./database')
+const DaoClass = require('./dao')
 
-// -------------- Configuration ---------------
-let _settings=JSON.parse(fs.readFileSync("config/settings.json"))
-const LISTEN_PORT = _settings.port
-const ROOT_DIR = _settings.rootdir
-const CDN_PREFIX = _settings.cdnPrefix || ''
-const DatabaseProvider = require(_settings.dbprovider)
-const LOG_OUTPUT = _settings.logname
-// ---------- End of configuration ------------
 
-let _logOutput=fs.createWriteStream(LOG_OUTPUT)
-let _oldLog=console.log
-console.log=function(str) {
-    _oldLog(str)
-    _logOutput.write(str + "\n")
-}
-console.log("Logger Initialized.")
-
+const ROOT_DIR = '/data';
+const CDN_PREFIX = process.env.CDN_PREFIX;
+const ES_HOST = process.env.ES_HOST;
+const ES_INDEX = process.env.ES_INDEX;
 const XVIEWER_VERSION = JSON.parse(fs.readFileSync("package.json")).version
-const db=new Database(new DatabaseProvider())
+const db=new Database(new DaoClass({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME,
+}))
 
 const esClient = elasticsearch.Client({
-    host: _settings.eshost,
+    host: ES_HOST,
     log: 'trace',
     apiVersion: '7.x'
 })
-
-async function CompareSingleObject(id) {
-    try {
-        await promisify(fs.access)(path.join(ROOT_DIR,"objects",id))
-    } catch (e) {
-        console.log(`ObjectMissing: ${id}`)
-        console.log(e.stack)
-        throw e
-    }
-}
-
-async function CompareObjects() {
-    let pArr=[]
-    let objs=await db.getObjectIDs()
-    for(let i=0;i<objs.length;i++) {
-        pArr.push(CompareSingleObject(objs[i]))
-    }
-    await Promise.all(pArr)
-    return objs.length
-}
 
 const app = new koa()
 app.use(koaBodyParser())
@@ -138,7 +112,7 @@ router.get('/cover', async (ctx) => {
 
 async function ESSimpleSearch(keyword, size) {
     return (await esClient.search({
-        index: _settings.esindex,
+        index: ES_INDEX,
         size: size,
         body: {
             query: {
@@ -451,7 +425,7 @@ async function main() {
 
     console.log(`Backend version: ${XVIEWER_VERSION}`)
     console.log("Starting server...")
-    app.listen(LISTEN_PORT)
+    app.listen(80)
 }
 
 let _tmServBefore=new Date()
