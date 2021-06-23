@@ -1,7 +1,8 @@
 FROM ubuntu:18.04
 RUN sed -i 's/archive.ubuntu.com/mirrors.cloud.tencent.com/g; s/security.ubuntu.com/mirrors.cloud.tencent.com/g' /etc/apt/sources.list \
     && rm -f /etc/apt/apt.conf.d/docker-gzip-indexes
-RUN apt update && apt install -y python python-pip && rm -rf /var/lib/apt/lists/*
-RUN pip install elasticsearch mysql-python
-COPY pytools/ /root/
-WORKDIR /root/pytools
+RUN apt update && apt install -y python python-pip libmysqlclient-dev ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN pip install -i https://mirrors.cloud.tencent.com/pypi/simple elasticsearch mysql-python
+COPY ./pytools/ /root/
+WORKDIR /root/
+CMD sleep infinity

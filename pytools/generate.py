@@ -9,7 +9,6 @@
 #     - objects/
 
 from UniTools.UniCon import UniCon
-from multiprocessing import Process
 import os
 import sys
 import hashlib
@@ -19,8 +18,8 @@ import time
 import json
 
 
-TEMP_PATH = '/mnt/z/faaq/temp'
-OBJECT_PATH = '/mnt/z/faaq/objects'
+TEMP_PATH = '/data/temp'
+OBJECT_PATH = '/data/objects'
 
 
 def get_file_hash(filepath):
@@ -39,10 +38,7 @@ def generate_cover(video_path):
 
 
 def add_video(fullpath, filename, tags=None):
-    with open("config.json") as f:
-        config = json.loads(f.read())
-
-    conn = UniCon.connect_mysql(config["host"], config["port"], config["username"], config["password"], config["database"])
+    conn = UniCon.connect_mysql(os.getenv("DB_HOST"), int(os.getenv("DB_PORT")), os.getenv("DB_USER"), os.getenv("DB_PASS"), os.getenv("DB_NAME"))
     result = conn.query("select * from objects")
     idset = {row['id']: row['filename'] for row in result}
 
