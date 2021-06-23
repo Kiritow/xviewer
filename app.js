@@ -28,7 +28,7 @@ const db = new DaoClass({
 });
 
 const esClient = elasticsearch.Client({
-    host: ES_HOST,
+    host: `http://${ES_HOST}:9200`,
     log: 'trace',
     apiVersion: '7.x'
 })
