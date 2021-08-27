@@ -65,9 +65,55 @@ router.get('/', async (ctx) => {
     ctx.body = await promisify(fs.readFile)('static/index.html')
 })
 
+function GetHeatFromInfo(info) {
+    const now = new Date()
+    let heat = 0
+    if (now - info.createtime < 1000*60*60*24*30) {
+        heat += 200;
+    } else if (now - info.createtime < 1000*60*60*24*90) {
+        heat += 150;
+    } else if (now - info.createtime < 1000*60*60*24*180) {
+        heat += 100;
+    } else if (now - info.createtime < 1000*60*60*24*365) {
+        heat += 50;
+    }
+
+    if (info.watchcount < 1) {
+        heat -= 190;
+    } else if (info.watchcount < 5) {
+        heat += 15 * info.watchcount;
+    } else if (info.watchcount < 10) {
+        heat += 65 + (info.watchcount - 5) * 35;
+    } else if (info.watchcount < 100) {
+        heat += 240 + (info.watchcount - 10) * 30;
+    } else {
+        heat += 2940 + (info.watchcount - 100) * 10;
+    }
+
+    return heat;
+}
+
 router.get('/list', async (ctx) => {
     try {
-        let videos = await db.getVideoObjects()
+        const videos = await db.getVideoObjects();
+        let sumHeat = 0;
+        let countHeat = 0;
+        let avgHeat = 1;
+        videos.forEach((info) => {
+            const heat = GetHeatFromInfo(info);
+            info.watchcount = heat;
+            if (heat > 0) {
+                sumHeat += heat;
+                countHeat += 1;
+            }
+        });
+        if (countHeat > 0) {
+            avgHeat = sumHeat / countHeat;
+        }
+        videos.forEach((info) => {
+            info.watchcount = info.watchcount * 100 / avgHeat;
+        });
+
         ctx.body = {
             videos,
             cdnPrefix: CDN_PREFIX,

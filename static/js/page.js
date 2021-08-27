@@ -8,6 +8,20 @@ function sendGet(url, dataType) {
         $.get(url, dataType).then(resolve).catch(reject)
     })
 }
+function sendPostWithTimeout(url, data, dataType, timeout) {
+    return new Promise((resolve, reject) => {
+        $.ajax({
+            method: 'POST',
+            url,
+            data,
+            dataType,
+            timeout,
+            success: resolve,
+            error: reject,
+        });
+    });
+}
+
 function ArrayRandomShuffle(arr) {
     // Do a quick Fisher–Yates shuffle
     let m = arr.length;
@@ -99,10 +113,10 @@ const app=new Vue({
             this.generateAllTags()
         },
         async preferredShuffleOnline() {
-            const result = await sendPost('/preferred', {
+            const result = await sendPostWithTimeout('/preferred', {
                 ticket: this.currentTicket,
-            }, 'json');
-            console.log(`${result.data.videos.length} preferred videos`)
+            }, 'json', 3000);
+            console.log(`${result.data.videos.length} preferred videos`);
             const resultSet = new Set(result.data.videos);
 
             this.dlists = []
@@ -136,6 +150,7 @@ const app=new Vue({
                 try {
                     this.preferredShuffleOnline();
                 } catch (e) {
+                    console.log(`Unable to load perferred videos: ${e}`)
                     this.dlists = this.alists;
                     this.randomShuffle();
                 }
@@ -229,6 +244,12 @@ const app=new Vue({
                 return `${parseInt(second / 60, 10)}分${parseInt(second % 60, 10)}秒`
             }
             return `${parseInt(second / 3600, 10)}小时${parseInt((second % 3600) / 60, 10)}分${parseInt(second % 60, 10)}秒`
+        },
+        ReadableHeat(heat) {
+            if (heat < 0) {
+                return '0%';
+            }
+            return `${heat.toFixed(2)}%`
         },
         adjustVideo(e) {
             console.log('adjust video')

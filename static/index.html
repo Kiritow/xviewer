@@ -111,7 +111,7 @@
                 </p>
                 <p>
                     <input class="button" type='button' value="随机排序" v-on:click="randomShuffle">
-                    <input class="button" type='button' value="计数排序" v-on:click="countShuffle">
+                    <input class="button" type='button' value="热度排序" v-on:click="countShuffle">
                     <input class="button" type='button' value="最早排序" v-on:click="oldestShuffle">
                     <input class="button" type='button' value="最新排序" v-on:click="latestShuffle">
                     <input class="button" type='button' value="最小排序" v-on:click="smallShuffle">
@@ -153,7 +153,7 @@
                         </p>
                     </div>
                     <div class="text vinfo">
-                        {{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 时长: {{ReadableDuration(info.vtime)}} 修改日期: {{new Date(info.mtime).toLocaleString()}} 观看计数: {{info.watchcount}}
+                        {{info.fname}} 文件大小: {{ReadableSize(info.fsize)}} 时长: {{ReadableDuration(info.vtime)}} 修改日期: {{new Date(info.mtime).toLocaleString()}} 热度: {{ReadableHeat(info.watchcount)}}
                         <input class="button" type='button' value="收藏" v-if="currentUsername.length > 0 && !favset.has(info.id)" v-on:click="addFav(info.id)">
                         <input class="button" type='button' value="取消收藏" v-if="currentUsername.length > 0 && favset.has(info.id)" v-on:click="removeFav(info.id)">
                         <span v-for="(tagname) in info.tags">
