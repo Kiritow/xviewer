@@ -82,12 +82,14 @@ router.get('/list', async (ctx) => {
 router.get('/video', (ctx) => {
     if(ctx.query.id) {
         console.log(`video ${ctx.query.id}`)
+        const prefix = ctx.query.id.substr(0, 2)
+        const resourcePath = `${prefix}/${ctx.query.id}`;
         if (CDN_PREFIX) {
             ctx.status = 307
-            ctx.redirect(`${CDN_PREFIX}/${ctx.query.id}`)
+            ctx.redirect(`${CDN_PREFIX}/${resourcePath}`)
             return
         }
-        return (part.middleware(ctx.query.id))(ctx)
+        return (part.middleware(resourcePath))(ctx)
     }
     ctx.status = 404
     ctx.body = "Video Not Found"
@@ -96,13 +98,15 @@ router.get('/video', (ctx) => {
 router.get('/cover', async (ctx) => {
     if(ctx.query.id) {
         console.log(`cover ${ctx.query.id}`)
+        const prefix = ctx.query.id.substr(0, 2)
+        const resourcePath = `${prefix}/${ctx.query.id}`;
         if (CDN_PREFIX) {
             ctx.status = 307
-            ctx.redirect(`${CDN_PREFIX}/${ctx.query.id}`)
+            ctx.redirect(`${CDN_PREFIX}/${resourcePath}`)
             return
         }
         ctx.set('Content-Type', 'image/png')
-        ctx.body = await promisify(fs.readFile)(path.join(ROOT_DIR, "objects", ctx.query.id))
+        ctx.body = await promisify(fs.readFile)(path.join(ROOT_DIR, "objects", resourcePath))
         return
     }
 

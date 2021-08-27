@@ -18,8 +18,13 @@ import time
 import json
 
 
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
+
 TEMP_PATH = '/data/temp'
 OBJECT_PATH = '/data/objects'
+PENDING_PATH = '/data/pending'
 
 
 def get_file_hash(filepath):
@@ -75,10 +80,12 @@ def add_video(fullpath, filename, tags=None):
     conn.execute("insert into videos(id, coverid, tags) values (%s, %s, %s)", [video_hash, cover_hash, json.dumps(tags or [], ensure_ascii=False)])
 
     print "Renaming video object: {} -> {}".format(filename, video_hash)
-    subprocess.check_call(["mv", fullpath, os.path.join(OBJECT_PATH, video_hash)])
+    video_hash_prefix = video_hash[0:2]
+    subprocess.check_call(["mv", fullpath, os.path.join(OBJECT_PATH, video_hash_prefix, video_hash)])
     if cover_new:
         print "Moving cover object: {}".format(cover_hash)
-        subprocess.check_call(["mv", cover_path, os.path.join(OBJECT_PATH, cover_hash)])
+        cover_hash_prefix = cover_hash[0:2]
+        subprocess.check_call(["mv", cover_path, os.path.join(OBJECT_PATH, cover_hash_prefix, cover_hash)])
 
     print "Done. New video added: {}".format(filename)
     conn.commit()
@@ -89,7 +96,7 @@ def add_video(fullpath, filename, tags=None):
 if __name__ == "__main__":
     print sys.argv
     if len(sys.argv) < 2:
-        root_path = OBJECT_PATH
+        root_path = PENDING_PATH
         enable_tag = False
         print "root path default to {}".format(root_path)
     else:
