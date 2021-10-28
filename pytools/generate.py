@@ -8,7 +8,6 @@
 #     - temp/
 #     - objects/
 
-from UniTools.UniCon import UniCon
 import os
 import sys
 import hashlib
@@ -16,6 +15,8 @@ import subprocess
 import uuid
 import time
 import json
+import traceback
+from UniTools.UniCon import UniCon
 
 
 reload(sys)
@@ -77,7 +78,17 @@ def add_video(fullpath, filename, tags=None):
         cover_name = "{}.png".format(os.path.basename(filename))
         conn.execute("insert into objects(id,filename,mtime,fsize) values (%s, %s, %s, %s)", [cover_hash, cover_name, cover_modify_time, cover_size])
 
-    conn.execute("insert into videos(id, coverid, tags) values (%s, %s, %s)", [video_hash, cover_hash, json.dumps(tags or [], ensure_ascii=False)])
+    print "Gathering information about video..."
+    video_duration = 0
+    try:
+        content = subprocess.check_output(["ffprobe", "-i", fullpath, "-show_format"])
+        for line in content.split('\n'):
+            if line.startswith("duration="):
+                video_duration = int(float(line.replace("duration=", "")))
+    except Exception:
+        print traceback.format_exc()
+
+    conn.execute("insert into videos(id, coverid, videotime, tags) values (%s, %s, %s)", [video_hash, cover_hash, video_duration, json.dumps(tags or [], ensure_ascii=False)])
 
     print "Renaming video object: {} -> {}".format(filename, video_hash)
     video_hash_prefix = video_hash[0:2]
