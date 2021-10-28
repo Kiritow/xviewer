@@ -141,8 +141,8 @@
                         </a>
                     </div>
                     <div v-bind:id="'vid_' + index" v-if="playing === index">
-                        <video id="video_playing" class="video" v-bind:src="getVideoPath(info.id)" v-on:loadedmetadata="adjustVideo($event)" controls autoplay>
-
+                        <video id="video_playing" class="video" v-on:loadedmetadata="adjustVideo($event)" style="width: 50vw; height: 50vh" v-bind:key="info" controls autoplay>
+                            <source v-bind:src="getVideoPath(info.id)" type="video/mp4" v-bind:key="info">
                         </video>
                         <p class='text vinfo'>
                             <span class="playing">正在播放: {{info.fname}}</span>

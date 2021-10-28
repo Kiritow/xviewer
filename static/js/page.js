@@ -218,6 +218,7 @@ const app=new Vue({
             this.getRecommend(this.vlists[index].id)
             console.log(`Play video: ${index} ${this.vlists[index].id}`)
             this.playing=index
+            this.$forceUpdate()
         },
         playRecommendVideo(index, recIndex) {
             this.stopVideo();
