@@ -20,7 +20,7 @@ docker-compose pull && docker-compose build && docker-compose up -d
 
 1. 将视频文件添加到`/data/pending`(宿主机: `/mnt/faaq/pending`)文件夹下
 
-2. 登录admin容器 `podman-compose exec admin bash`
+2. 登录admin容器 `docker-compose exec admin bash`
 
 3. 启动视频转换程序 `python generate.py`
     
