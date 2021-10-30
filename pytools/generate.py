@@ -88,7 +88,7 @@ def add_video(fullpath, filename, tags=None):
     except Exception:
         print traceback.format_exc()
 
-    conn.execute("insert into videos(id, coverid, videotime, tags) values (%s, %s, %s)", [video_hash, cover_hash, video_duration, json.dumps(tags or [], ensure_ascii=False)])
+    conn.execute("insert into videos(id, coverid, videotime, tags) values (%s, %s, %s, %s)", [video_hash, cover_hash, video_duration, json.dumps(tags or [], ensure_ascii=False)])
 
     print "Renaming video object: {} -> {}".format(filename, video_hash)
     video_hash_prefix = video_hash[0:2]
