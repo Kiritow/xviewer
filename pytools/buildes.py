@@ -11,17 +11,17 @@ if __name__ == "__main__":
     result = conn.query("select * from objects A inner join videos B on A.id=B.id")
 
     es = Elasticsearch(["http://{}:9200".format(os.getenv("ES_HOST"))])
-    print "Removing previous video index..."
+    print("Removing previous video index...")
     try:
         es.indices.delete(index=os.getenv("ES_INDEX"))
     except Exception:
-        print traceback.format_exc()
+        print(traceback.format_exc())
 
-    print "Creating video index..."
+    print("Creating video index...")
     try:
         es.indices.create(index=os.getenv("ES_INDEX"), ignore=400)
     except Exception:
-        print traceback.format_exc()
+        print(traceback.format_exc())
 
     # 写入数据（批量）
     batch_data = [{
@@ -32,5 +32,5 @@ if __name__ == "__main__":
         }
     } for row in result]
 
-    print "Sending to ES..."
+    print("Sending to ES...")
     helpers.bulk(es, batch_data)
