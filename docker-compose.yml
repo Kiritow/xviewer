@@ -20,7 +20,8 @@ services:
         volumes:
             - esvol:/usr/share/elasticsearch/data
     app:
-        build: .
+        build:
+            context: ./server
         image: xviewer:latest
         restart: always
         environment:
@@ -37,8 +38,7 @@ services:
             - /mnt/faaq:/data
     admin:
         build:
-            context: .
-            dockerfile: Dockerfile.admin
+            context: ./pytools
         image: xviewer-admin:latest
         restart: always
         environment:
