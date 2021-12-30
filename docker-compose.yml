@@ -51,6 +51,7 @@ services:
             ES_INDEX: test-video-index
         volumes:
             - /mnt/faaq:/data
+            - ./local:/root/local
 volumes:
     datavol:
     esvol:
