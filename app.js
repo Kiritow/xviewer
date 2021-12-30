@@ -136,6 +136,9 @@ router.get('/video', (ctx) => {
             return
         }
         return (part.middleware(resourcePath))(ctx)
+        // ctx.set('Content-Type', 'video/mp4');
+        // ctx.body = fs.createReadStream(path.join(ROOT_DIR, "objects", resourcePath));
+        // return
     }
     ctx.status = 404
     ctx.body = "Video Not Found"
@@ -238,13 +241,13 @@ router.post('/preferred', async (ctx) => {
         const history = await db.getHistoryByTicket(ticket)
 
         const tempSet = new Set()
-        for(let i=0; i<5; i++) {
+        for(let i=0; i<8; i++) {
             if (favs.length > 0) {
                 tempSet.add(favs[Math.floor(Math.random() * favs.length)])
             }
         }
 
-        for(let i=0; i<5; i++) {
+        for(let i=0; i<4; i++) {
             if (history.length > 0) {
                 tempSet.add(history[Math.floor(Math.random() * history.length)].id)
             }
