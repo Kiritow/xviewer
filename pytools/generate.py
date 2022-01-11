@@ -78,6 +78,7 @@ def add_video(fullpath, filename, tags=None):
     video_duration = 0
     try:
         content = subprocess.check_output(["ffprobe", "-i", fullpath, "-show_format"])
+        content = content.decode()
         for line in content.split('\n'):
             if line.startswith("duration="):
                 video_duration = int(float(line.replace("duration=", "")))
