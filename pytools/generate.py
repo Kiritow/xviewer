@@ -25,10 +25,13 @@ PENDING_PATH = '/data/pending'
 
 
 def get_file_hash(filepath):
-    with open(filepath, 'rb') as f:
-        content = f.read()
     sha = hashlib.sha256()
-    sha.update(content)
+    with open(filepath, 'rb') as f:
+        while True:
+            content = f.read(4096 * 1024)
+            if not content:
+                break
+            sha.update(content)    
     return sha.hexdigest()
 
 
