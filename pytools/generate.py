@@ -17,6 +17,7 @@ import time
 import json
 import traceback
 from UniTools.UniCon import UniCon
+from UniTools.UniClock import TimeFormat
 
 
 TEMP_PATH = '/data/temp'
@@ -24,14 +25,50 @@ OBJECT_PATH = '/data/objects'
 PENDING_PATH = '/data/pending'
 
 
+def write_progress(content):
+    sys.stdout.write("\033[2K\r{}".format(content))
+    time.sleep(0.1)
+
+
+def write_finish(content):
+    sys.stdout.write("\033[2K\r{}\n".format(content))
+
+
+def readable_bytes(size):
+    if size < 1024:
+        return "{}B".format(size)
+    if size < 1024 * 1024:
+        return "{}KB".format(round(size / 1024, 2))
+    if size < 1024 * 1024 * 1024:
+        return "{}MB".format(round(size / 1024 / 1024, 2))
+    return "{}GB".format(round(size / 1024 / 1024 / 1024, 2))
+
+
 def get_file_hash(filepath):
+    bytes_read = 0
+    bytes_total = os.stat(filepath).st_size
+    read_size = 10 * 1024 * 1024
+    time_start = time.time()
+
     sha = hashlib.sha256()
     with open(filepath, 'rb') as f:
         while True:
-            content = f.read(4096 * 1024)
+            content = f.read(read_size)
             if not content:
                 break
-            sha.update(content)    
+            bytes_read += len(content)
+            sha.update(content)
+
+            read_speed = bytes_read / (time.time() - time_start)
+            read_eta = bytes_total / read_speed
+            write_progress('Reading file... {} of {} ({}%) Speed: {}/s ETA: {}'.format(
+                readable_bytes(bytes_read),
+                readable_bytes(bytes_total),
+                round(bytes_read / bytes_total * 100, 2),
+                readable_bytes(read_speed),
+                TimeFormat(read_eta)
+            ))
+    write_finish('Computed file size: {}'.format(readable_bytes(bytes_read)))
     return sha.hexdigest()
 
 
