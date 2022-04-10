@@ -60,12 +60,13 @@ def get_file_hash(filepath):
             sha.update(content)
 
             read_speed = bytes_read / (time.time() - time_start)
-            read_eta = bytes_total / read_speed
-            write_progress('Reading file... {} of {} ({}%) Speed: {}/s ETA: {}'.format(
+            read_eta = (bytes_total - bytes_read) / read_speed
+            write_progress('Reading file... {} of {} ({}%) Speed: {}/s TimeSpent: {} ETA: {}'.format(
                 readable_bytes(bytes_read),
                 readable_bytes(bytes_total),
                 round(bytes_read / bytes_total * 100, 2),
                 readable_bytes(read_speed),
+                TimeFormat(time.time() - time_start),
                 TimeFormat(read_eta)
             ))
     write_finish('Computed file size: {}'.format(readable_bytes(bytes_read)))
