@@ -147,7 +147,13 @@ const app=Vue.createApp({
 
             if (this.currentUsername.length > 0) {
                 try {
-                    this.preferredShuffleOnline();
+                    await this.reloadUserFav();
+                } catch (e) {
+                    console.log('unable to load user fav')
+                }
+
+                try {
+                    await this.preferredShuffleOnline();
                 } catch (e) {
                     console.log(`Unable to load perferred videos: ${e}`)
                     this.dlists = this.alists;
@@ -686,10 +692,8 @@ const app=Vue.createApp({
                 console.log(e)
             }
         },
-        async favShuffleOnline() {
-            console.log("fav shuffle online started")
-            await this.reloadAllInfo()
-            this.showoffset = 0
+        async reloadUserFav() {
+            console.log('fetch user fav')
 
             try {
                 const data = await sendPost("/favorites", {
@@ -698,21 +702,27 @@ const app=Vue.createApp({
 
                 this.favset = new Set(data)
                 console.log(`fav list fetched, size=${this.favset.size}`)
-
-                const tempList = []
-                data.forEach((favid) => {
-                    for(let i=0; i<this.alists.length; i++) {
-                        if (this.alists[i].id == favid) {
-                            tempList.push(this.alists[i])
-                            break;
-                        }
-                    }
-                })
-                this.dlists = tempList
-                this.updateVisual()
             } catch (e) {
                 console.log(e)
             }
+        },
+        async favShuffleOnline() {
+            console.log("fav shuffle online started")
+            await this.reloadVideoList()
+            this.showoffset = 0
+
+            await this.reloadUserFav()
+            const tempList = []
+            data.forEach((favid) => {
+                for(let i=0; i<this.alists.length; i++) {
+                    if (this.alists[i].id == favid) {
+                        tempList.push(this.alists[i])
+                        break;
+                    }
+                }
+            })
+            this.dlists = tempList
+            this.updateVisual()
         },
         async register() {
             if (!this.inputUsername || this.inputUsername.length < 1 || !this.inputPassword || this.inputPassword.length < 1) {
