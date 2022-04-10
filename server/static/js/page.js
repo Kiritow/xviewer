@@ -33,9 +33,8 @@ function ArrayRandomShuffle(arr) {
     }
 }
 
-const app=new Vue({
-    el: "#app",
-    data: {
+const app=Vue.createApp({
+    data: () => ({
         siteYear: "",
         cdnPrefix: "",
 
@@ -65,7 +64,7 @@ const app=new Vue({
         currentUsername: "",
         currentTicket: "",
         loginMessage: "",
-    },
+    }),
     mounted() {
         console.log("Running mounted method...")
         this.pageInputs.tagInputs = []
@@ -99,7 +98,7 @@ const app=new Vue({
                 return `/video?id=${vid}`
             }
         },
-        async reloadAllInfo() {
+        async reloadVideoList() {
             console.log('loading video info...')
             const res = await sendGet('/list', 'json');
             console.log(`${res.videos.length} video loaded.`)
@@ -143,7 +142,7 @@ const app=new Vue({
             this.updateVisual();
         },
         async initPanel() {
-            await this.reloadAllInfo()
+            await this.reloadVideoList()
             this.showoffset = 0
 
             if (this.currentUsername.length > 0) {
@@ -664,7 +663,7 @@ const app=new Vue({
         },
         async watchedShuffleOnline() {
             console.log("recent shuffle online started.")
-            await this.reloadAllInfo()
+            await this.reloadVideoList()
             this.showoffset = 0
 
             try {
@@ -791,7 +790,7 @@ const app=new Vue({
             this.loginMessage = ""
         }
     }
-})
+}).mount('#app')
 
 
 app.initPanel()
