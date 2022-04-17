@@ -713,7 +713,7 @@ const app=Vue.createApp({
 
             await this.reloadUserFav()
             const tempList = []
-            data.forEach((favid) => {
+            this.favset.forEach((favid) => {
                 for(let i=0; i<this.alists.length; i++) {
                     if (this.alists[i].id == favid) {
                         tempList.push(this.alists[i])
