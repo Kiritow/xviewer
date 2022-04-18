@@ -47,7 +47,7 @@ def readable_bytes(size):
 def get_file_hash(filepath):
     bytes_read = 0
     bytes_total = os.stat(filepath).st_size
-    read_size = 10 * 1024 * 1024
+    read_size = 32 * 1024 * 1024
     time_start = time.time()
 
     sha = hashlib.sha256()
@@ -69,7 +69,7 @@ def get_file_hash(filepath):
                 TimeFormat(time.time() - time_start),
                 TimeFormat(read_eta)
             ))
-    write_finish('Computed file size: {}'.format(readable_bytes(bytes_read)))
+    write_finish('Computed file size: {} in {}'.format(readable_bytes(bytes_read), TimeFormat(time.time() - time_start)))
     return sha.hexdigest()
 
 
