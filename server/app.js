@@ -41,6 +41,7 @@ app.use(async (ctx, next) => {
     if(ctx.url.startsWith("/video")) {
         console.log(JSON.stringify(ctx.headers, null, 2))
     }
+
     try {
         await next()
         console.log(JSON.stringify(ctx.response.headers, null, 2))
@@ -125,7 +126,17 @@ router.get('/list', async (ctx) => {
     }
 })
 
-router.get('/video', (ctx) => {
+function isObjectExists(objectId) {
+    const prefix = objectId.substr(0, 2)
+    const resourcePath = `${prefix}/${objectId}`;
+    const filePath = path.join(ROOT_DIR, "objects", resourcePath)
+
+    return new Promise((resolve) => {
+        fs.access(filePath, fs.constants.R_OK, (err) => resolve(err ? false : true))
+    })
+}
+
+router.get('/video', async (ctx) => {
     if(ctx.query.id) {
         console.log(`video ${ctx.query.id}`)
         const prefix = ctx.query.id.substr(0, 2)
@@ -135,13 +146,21 @@ router.get('/video', (ctx) => {
             ctx.redirect(`${CDN_PREFIX}/${resourcePath}`)
             return
         }
+
+        if (!await isObjectExists(ctx.query.id)) {
+            console.error(`[ERROR] video not found: ${ctx.query.id}`)
+
+            ctx.status = 404
+            ctx.body = "video not found"
+            return
+        }
+
         return (part.middleware(resourcePath))(ctx)
-        // ctx.set('Content-Type', 'video/mp4');
-        // ctx.body = fs.createReadStream(path.join(ROOT_DIR, "objects", resourcePath));
-        // return
     }
+
+    console.error(`[ERROR] video not found: ${ctx.query.id}`)
     ctx.status = 404
-    ctx.body = "Video Not Found"
+    ctx.body = "video Not Found"
 })
 
 router.get('/cover', async (ctx) => {
@@ -154,13 +173,24 @@ router.get('/cover', async (ctx) => {
             ctx.redirect(`${CDN_PREFIX}/${resourcePath}`)
             return
         }
+
+        if (!await isObjectExists(ctx.query.id)) {
+            console.error(`[ERROR] video not found: ${ctx.query.id}`)
+
+            ctx.status = 404
+            ctx.body = "cover not found"
+            return
+        }
+
         ctx.set('Content-Type', 'image/png')
         ctx.body = await promisify(fs.readFile)(path.join(ROOT_DIR, "objects", resourcePath))
         return
     }
 
+    console.error(`[ERROR] video not found: ${ctx.query.id}`)
+
     ctx.status = 404
-    ctx.body = "Cover Not Found"
+    ctx.body = "cover not found"
 })
 
 async function ESSimpleSearch(keyword, size) {
