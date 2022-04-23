@@ -37,18 +37,18 @@ const app = new koa()
 app.use(koaBodyParser())
 app.use(koaJson())
 app.use(async (ctx, next) => {
-    console.log(`${ctx.method} ${ctx.url}`)
     if(ctx.url.startsWith("/video")) {
-        console.log(JSON.stringify(ctx.headers, null, 2))
+        console.log(`${ctx.method} ${ctx.url} headers=${JSON.stringify(ctx.headers)}`)
+    } else {
+        console.log(`${ctx.method} ${ctx.url}`)
     }
 
     try {
         await next()
-        console.log(JSON.stringify(ctx.response.headers, null, 2))
     } catch (e) {
-        console.log(e)
+        console.log(`${ctx.method} ${ctx.url} error: ${e}`)
         ctx.status = 500
-        ctx.body = "Server Internal Error"
+        ctx.body = "Server internal error"
     }
 })
 
@@ -66,7 +66,7 @@ router.get('/', async (ctx) => {
     ctx.body = await promisify(fs.readFile)('static/index.html')
 })
 
-function GetHeatFromInfo(info) {
+function GetHeatFromInfo(info, progressRatio) {
     const now = new Date()
     let heat = 0
     if (now - info.createtime < 1000*60*60*24*30) {
@@ -82,13 +82,13 @@ function GetHeatFromInfo(info) {
     if (info.watchcount < 1) {
         heat -= 190;
     } else if (info.watchcount < 5) {
-        heat += 15 * info.watchcount;
+        heat += 15 * info.watchcount * progressRatio;
     } else if (info.watchcount < 10) {
-        heat += 65 + (info.watchcount - 5) * 35;
+        heat += (65 + (info.watchcount - 5) * 35) * progressRatio;
     } else if (info.watchcount < 100) {
-        heat += 240 + (info.watchcount - 10) * 30;
+        heat += (240 + (info.watchcount - 10) * 30) * progressRatio;
     } else {
-        heat += 2940 + (info.watchcount - 100) * 10;
+        heat += (2940 + (info.watchcount - 100) * 10) * progressRatio
     }
 
     return heat;
@@ -96,18 +96,37 @@ function GetHeatFromInfo(info) {
 
 router.get('/list', async (ctx) => {
     try {
-        const videos = await db.getVideoObjects();
+        const videos = await db.getVideoObjects()
+        const videosIndex = new Map()
+        videos.forEach((info) => videosIndex.set(info.id, info))
+
+        const videoStats = await db.getVideoWatchStat()
+        videoStats.forEach((sinfo) => {
+            if(videosIndex.get(sinfo.id) != null) {
+                sinfo.progress = sinfo.avgtime / videosIndex.get(sinfo.id).vtime
+            }
+        })
+
+        const videoWatchModifier = new Map()
+        const videoStatsFiltered = videoStats.filter((sinfo) => sinfo.progress != null)
+        videoStatsFiltered.sort((a, b) => a.progress - b.progress)
+        videoStatsFiltered.forEach((sinfo, sidx) => {
+            videoWatchModifier.set(sinfo.id, 1 + (sidx + 1) / videoStatsFiltered.length)
+        })
+
         let sumHeat = 0;
         let countHeat = 0;
         let avgHeat = 1;
         videos.forEach((info) => {
-            const heat = GetHeatFromInfo(info);
+            // replace watch count with heat
+            const heat = GetHeatFromInfo(info, videoWatchModifier.get(info.id) || 1)
             info.watchcount = heat;
             if (heat > 0) {
                 sumHeat += heat;
                 countHeat += 1;
             }
         });
+
         if (countHeat > 0) {
             avgHeat = sumHeat / countHeat;
         }
@@ -211,7 +230,7 @@ router.get('/search', async (ctx) => {
     const kw = ctx.query.kw
     if (!kw) {
         ctx.status = 400
-        ctx.body = "kw required."
+        ctx.body = "Missing parameters"
         return
     }
 
@@ -233,7 +252,7 @@ router.get('/recommend', async (ctx) => {
     const fromId = ctx.query.from
     if (!fromId) {
         ctx.status = 400
-        ctx.body = "from required."
+        ctx.body = "Missing parameters"
         return
     }
 
@@ -321,7 +340,7 @@ router.post('/preferred', async (ctx) => {
         ctx.status = 500
         ctx.body = {
             code: -1,
-            message: "Database Error"
+            message: "Database error"
         }
     }
 })
@@ -396,7 +415,7 @@ router.post('/add_tag', async (ctx) => {
     const videoID = postData.id
     const tagValue = postData.tag
 
-    console.log(`Add Tag: ${tagValue} to ${videoID}`)
+    console.log(`AddTag: video=${videoID} tag=${tagValue}`)
     await db.addVideoTag(videoID, tagValue)
 
     ctx.body = "OK"
@@ -409,7 +428,7 @@ router.post('/remove_tag', async (ctx) => {
     const videoID = postData.id
     const tagValue = postData.tag
 
-    console.log(`Remove Tag: ${tagValue} from ${videoID}`)
+    console.log(`RemoveTag: video=${videoID} tag=${tagValue}`)
     await db.removeVideoTag(videoID, tagValue)
 
     ctx.body = "OK"
@@ -422,7 +441,7 @@ router.post('/add_fav', async (ctx) => {
     const videoID = postData.id
     const ticket = postData.ticket
 
-    console.log(`Add Tag: ${ticket} to ${videoID}`)
+    console.log(`AddUserFav: video=${videoID} user=${ticket}`)
     await db.addVideoFav(ticket, videoID)
 
     ctx.body = "OK"
@@ -435,7 +454,7 @@ router.post('/remove_fav', async (ctx) => {
     const videoID = postData.id
     const ticket = postData.ticket
 
-    console.log(`Remove Tag: ${ticket} from ${videoID}`)
+    console.log(`RemoveUserFav: video=${videoID} user=${ticket}`)
     await db.removeVideoFav(ticket, videoID)
 
     ctx.body = "OK"
@@ -501,13 +520,26 @@ app.use(koaStatic(path.join(__dirname, "static")))
 app.use(router.routes()).use(router.allowedMethods())
 
 
+async function PreReadObjectList() {
+    const objLst = await db.getAllObjectID()
+    const cntFailed = 0
+    await Promise.all(objLst.map((async (objId) => {
+        if (!await isObjectExists(objId)) {
+            ++cntFailed
+            console.log(`[WARN] object ${objId} not found on disk`)
+        }
+    })))
+    console.log(`${objLst.length} objects checked. ${cntFailed} objects not found.`)
+}
+
 async function main() {
+    console.log(`Backend version: ${XVIEWER_VERSION}`)
+    console.log('Object list pre-reading...')
+    await PreReadObjectList()
     // console.log("Comparing database with objects on disk...")
     // const cntObjects = await CompareObjects()
     // console.log(`[Done] All ${cntObjects} objects found on disk.`)
-
-    console.log(`Backend version: ${XVIEWER_VERSION}`)
-    console.log("Starting server...")
+    console.log("Starting web server...")
     app.listen(80)
 }
 

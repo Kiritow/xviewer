@@ -25,7 +25,7 @@ class DaoClass extends BaseDaoClass {
         }
     }
 
-    async getObjectIDs() {
+    async getAllObjectID() {
         let results = await this.query("select id from objects", [])
         return results.map((row) => {
             return row.id
@@ -55,20 +55,29 @@ class DaoClass extends BaseDaoClass {
 
     async getVideoObjects() {
         const results = await this.query("select videos.id,coverid,filename,mtime,fsize,videotime,watchcount,videos.createtime,videos.updatetime,tags from videos inner join objects on videos.id=objects.id ", [])
-        return results.map((row) => {
-            return {
-                id: row.id,
-                cid: row.coverid,
-                fname: row.filename,
-                mtime: row.mtime,
-                fsize: row.fsize,
-                vtime: row.videotime,
-                watchcount: row.watchcount,
-                createtime: row.createtime,
-                updatetime: row.updatetime,
-                tags: JSON.parse(row.tags || "[]"),
-            }
-        })
+        return results.map(row => ({
+            id: row.id,
+            cid: row.coverid,
+            fname: row.filename,
+            mtime: row.mtime,
+            fsize: row.fsize,
+            vtime: row.videotime,
+            watchcount: row.watchcount,
+            createtime: row.createtime,
+            updatetime: row.updatetime,
+            tags: JSON.parse(row.tags || "[]"),
+        }))
+    }
+
+    async getVideoWatchStat() {
+        const results = await this.query(`
+            select id, sum(watchtime) as totaltime, avg(watchtime) as avgtime
+            from history where watchtime!=0 group by id`)
+        return results.map((row) => ({
+            id: row.id,
+            totaltime: row.totaltime,
+            avgtime: row.avgtime,
+        }))
     }
 
     async addVideoWatchByID(objID) {
