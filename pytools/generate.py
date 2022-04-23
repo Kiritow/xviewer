@@ -73,11 +73,15 @@ def get_file_hash(filepath):
     return sha.hexdigest()
 
 
+def get_file_hash_system(filepath):
+    return subprocess.check_output(["sha256sum", filepath]).decode().split()[0]
+
+
 def generate_cover(video_path):
     cover_path = os.path.join(TEMP_PATH, "{}.png".format(uuid.uuid4()))
     print("Generating cover for {} to {}...".format(video_path, cover_path))
     subprocess.check_call(["ffmpeg", "-ss", "00:00:05.000", "-i", video_path, "-vframes", "1", cover_path, "-y"])
-    return cover_path, get_file_hash(cover_path)
+    return cover_path, get_file_hash_system(cover_path)
 
 
 def add_video(fullpath, filename, tags=None):
@@ -86,11 +90,11 @@ def add_video(fullpath, filename, tags=None):
     idset = {row['id']: row['filename'] for row in result}
 
     print("Computing hash of file: {}".format(fullpath))
-    video_hash = get_file_hash(fullpath)
+    video_hash = get_file_hash_system(fullpath)
     if video_hash in idset:
         print("[Skipped] Video already exists: {}\n  Record name: {}\n  hash: {}".format(filename, idset[video_hash], video_hash))
         return False
-    
+
     cover_path, cover_hash = generate_cover(fullpath)
     if cover_hash in idset:
         print("[Ignored] Cover {} already exists. Previous name is: {}".format(cover_hash, idset[cover_hash]))
