@@ -677,15 +677,16 @@ const app=Vue.createApp({
                     ticket: this.currentTicket,
                 }, 'json')
 
+                const allVideoIdSet = new Map()
+                this.alists.forEach((info) => allVideoIdSet.set(info.id, info))
+
                 const tempList = []
                 data.forEach((info) => {
-                    for(let i=0; i<this.alists.length; i++) {
-                        if (this.alists[i].id == info.id) {
-                            tempList.push(this.alists[i])
-                            break;
-                        }
+                    if(allVideoIdSet.has(info.id)) {
+                        tempList.push(allVideoIdSet.get(info.id))
                     }
                 })
+
                 this.dlists = tempList
                 this.updateVisual()
             } catch (e) {
@@ -708,10 +709,8 @@ const app=Vue.createApp({
         },
         async favShuffleOnline() {
             console.log("fav shuffle online started")
-            await this.reloadVideoList()
-            this.showoffset = 0
+            await Promise.all([this.reloadVideoList(), this.reloadUserFav()])
 
-            await this.reloadUserFav()
             const tempList = []
             this.favset.forEach((favid) => {
                 for(let i=0; i<this.alists.length; i++) {
@@ -721,7 +720,9 @@ const app=Vue.createApp({
                     }
                 }
             })
+
             this.dlists = tempList
+            this.showoffset = 0
             this.updateVisual()
         },
         async register() {
