@@ -32,6 +32,13 @@ services:
             DB_NAME: xviewer
             ES_HOST: es
             ES_INDEX: test-video-index
+        volumes:
+            - /mnt/faaq:/data
+    gateway:
+        build:
+            context: ./gateway
+        image: xviewer-gateway:latest
+        restart: always
         ports:
             - 9889:80
         volumes:
@@ -53,5 +60,4 @@ services:
             - /mnt/faaq:/data
             - ./local:/root/local
 volumes:
-    datavol:
     esvol:
