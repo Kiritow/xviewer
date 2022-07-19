@@ -118,6 +118,7 @@
                     <input class="button" type='button' value="最大排序" v-on:click="bigShuffle">
                     <input class="button" type='button' value="最短排序" v-on:click="shortShuffle">
                     <input class="button" type='button' value="最长排序" v-on:click="longShuffle">
+                    <input class="button" type='button' value="最近看过(全站/本地)" v-on:click="watchedShuffle">
                     <input class="button disbutton" type='button' value="收藏夹(请登录)" v-if="currentUsername.length < 1" disabled>
                     <input class="button disbutton" type='button' value="最近看过(请登录)" v-if="currentUsername.length < 1" disabled>
                     <input class="button" type='button' value="收藏夹/在线" v-if="currentUsername.length > 0" v-on:click="favShuffleOnline">
@@ -137,12 +138,12 @@
                 <div v-for="(info,index) in vlists" v-bind:id="'frame_' + index">
                     <div v-bind:id="'info_' + index"  v-show="playing !== index && !info.hidden" class="text vinfo" v-bind:data-index="index">
                         <a>
-                            <img class="cover" v-bind:src="getCoverPath(info.cid)" v-on:click="playVideo(index)" loading=lazy>
+                            <img class="cover" v-bind:src="getObjectPath(info.cid)" v-on:click="playVideo(index)" loading=lazy>
                         </a>
                     </div>
                     <div v-bind:id="'vid_' + index" v-if="playing === index">
                         <video id="video_playing" class="video" v-on:loadedmetadata="adjustVideo($event)" style="width: 50vw; height: 50vh" v-bind:key="info" controls autoplay>
-                            <source v-bind:src="getVideoPath(info.id)" type="video/mp4" v-bind:key="info">
+                            <source v-bind:src="getObjectPath(info.id)" type="video/mp4" v-bind:key="info">
                         </video>
                         <p class='text vinfo'>
                             <span class="playing">正在播放: {{info.fname}}</span>

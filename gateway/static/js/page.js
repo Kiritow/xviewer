@@ -40,6 +40,7 @@ const app=Vue.createApp({
 
         rates: [0.5,0.75,1,1.25,1.5,2,2.5],
         alists: [],  // All video
+        alistIndex: new Map(),
         dlists: [],  // Searched result
         vlists: [],  // Visual result
         favset: new Set(),  // Favorite data
@@ -84,26 +85,22 @@ const app=Vue.createApp({
 
     },
     methods: {
-        getCoverPath(cid) {
+        getObjectPath(oid) {
             if (this.cdnPrefix && this.cdnPrefix.length > 0) {
-                return `${this.cdnPrefix}/${cid}`
+                return `${this.cdnPrefix}/${oid}`
             } else {
-                return `/cover?id=${cid}`
-            }
-        },
-        getVideoPath(vid) {
-            if (this.cdnPrefix && this.cdnPrefix.length > 0) {
-                return `${this.cdnPrefix}/${vid}`
-            } else {
-                return `/video?id=${vid}`
+                return `/object/${oid.substring(0,2)}/${oid}`
             }
         },
         async reloadVideoList() {
             console.log('loading video info...')
-            const res = await sendGet('/list', 'json');
+            const res = await sendGet('/api/list', 'json');
             console.log(`${res.videos.length} video loaded.`)
 
             this.alists = res.videos
+            this.alistIndex = new Map()
+            res.videos.forEach((info) => this.alistIndex.set(info.id, info))
+
             this.cdnPrefix = res.cdnPrefix
             if (this.cdnPrefix && this.cdnPrefix.length > 0) {
                 console.log(`cdn detected: ${this.cdnPrefix}`)
@@ -112,7 +109,7 @@ const app=Vue.createApp({
             this.generateAllTags()
         },
         async preferredShuffleOnline() {
-            const result = await sendPostWithTimeout('/preferred', {
+            const result = await sendPostWithTimeout('/api/preferred', {
                 ticket: this.currentTicket,
             }, 'json', 3000);
             console.log(`${result.data.videos.length} preferred videos`);
@@ -180,7 +177,7 @@ const app=Vue.createApp({
             this.playing = -1
         },
         async analysisVideoPlayed(index) {
-            return sendPost("/video_played", {
+            return sendPost("/api/video_played", {
                 id: this.vlists[index].id,
                 ticket: this.currentTicket,
             }, 'json')
@@ -204,7 +201,7 @@ const app=Vue.createApp({
                                 lastCheckTime = new Date()
 
                                 console.log(`report video playing ${this.playingWatchId} ${(totalPlayDuration / 1000).toFixed(2)}`)
-                                await sendPost('/video_playing', {
+                                await sendPost('/api/video_playing', {
                                     sess: this.playingWatchId,
                                     duration: parseInt(totalPlayDuration / 1000, 10),
                                 }, 'json')
@@ -462,7 +459,7 @@ const app=Vue.createApp({
                 }
 
                 try {
-                    await sendPost("/remove_tag", {
+                    await sendPost("/api/remove_tag", {
                         id: videoId,
                         tag: newTagValue
                     })
@@ -480,7 +477,7 @@ const app=Vue.createApp({
                 }
 
                 try {
-                    await sendPost("/add_tag", {
+                    await sendPost("/api/add_tag", {
                         id: videoId,
                         tag: newTagValue
                     })
@@ -499,7 +496,7 @@ const app=Vue.createApp({
                 return
             }
             try {
-                await sendPost("/add_fav", {
+                await sendPost("/api/add_fav", {
                     ticket: this.currentTicket,
                     id
                 }, 'json')
@@ -516,7 +513,7 @@ const app=Vue.createApp({
                 return
             }
             try {
-                await sendPost("/remove_fav", {
+                await sendPost("/api/remove_fav", {
                     ticket: this.currentTicket,
                     id
                 })
@@ -574,7 +571,7 @@ const app=Vue.createApp({
                 console.log(`no keyword specified, skipped.`)
                 return
             }
-            const searchResult = await sendGet(`/search?kw=${this.keyword}`, 'json')
+            const searchResult = await sendGet(`/api/search?kw=${this.keyword}`, 'json')
             console.log(searchResult)
 
             const currentMap = new Map()
@@ -596,18 +593,13 @@ const app=Vue.createApp({
         },
         async getRecommend(id) {
             console.log(`recommend: ${id}`)
-            const searchResult = await sendGet(`/recommend?from=${id}`, 'json')
+            const searchResult = await sendGet(`/api/recommend?from=${id}`, 'json')
             console.log(searchResult)
-
-            const currentMap = new Map()
-            this.alists.forEach((info) => {
-                currentMap.set(info.id, info)
-            })
 
             const temp = []
             searchResult.forEach((vid) => {
-                if(currentMap.has(vid)) {
-                    temp.push(currentMap.get(vid))
+                if(this.alistIndex.has(vid)) {
+                    temp.push(this.alistIndex.get(vid))
                 }
             })
             this.playingRecommends = temp
@@ -669,25 +661,21 @@ const app=Vue.createApp({
         },
         async watchedShuffleOnline() {
             console.log("recent shuffle online started.")
-            await this.reloadVideoList()
-            this.showoffset = 0
 
             try {
-                let data = await sendPost("/history", {
+                let data = await sendPost("/api/history", {
                     ticket: this.currentTicket,
                 }, 'json')
 
-                const allVideoIdSet = new Map()
-                this.alists.forEach((info) => allVideoIdSet.set(info.id, info))
-
                 const tempList = []
                 data.forEach((info) => {
-                    if(allVideoIdSet.has(info.id)) {
-                        tempList.push(allVideoIdSet.get(info.id))
+                    if(this.alistIndex.has(info.id)) {
+                        tempList.push(this.alistIndex.get(info.id))
                     }
                 })
 
                 this.dlists = tempList
+                this.showoffset = 0
                 this.updateVisual()
             } catch (e) {
                 console.log(e)
@@ -697,7 +685,7 @@ const app=Vue.createApp({
             console.log('fetch user fav')
 
             try {
-                const data = await sendPost("/favorites", {
+                const data = await sendPost("/api/favorites", {
                     ticket: this.currentTicket,
                 }, 'json')
 
@@ -709,15 +697,12 @@ const app=Vue.createApp({
         },
         async favShuffleOnline() {
             console.log("fav shuffle online started")
-            await Promise.all([this.reloadVideoList(), this.reloadUserFav()])
+            await this.reloadUserFav()
 
             const tempList = []
             this.favset.forEach((favid) => {
-                for(let i=0; i<this.alists.length; i++) {
-                    if (this.alists[i].id == favid) {
-                        tempList.push(this.alists[i])
-                        break;
-                    }
+                if (this.alistIndex.has(favid)) {
+                    tempList.push(this.alistIndex.get(favid))
                 }
             })
 
@@ -733,7 +718,7 @@ const app=Vue.createApp({
             this.loginInProgress = true
             this.loginMessage = "正在注册..."
             try {
-                const data = await sendPost("/register", {
+                const data = await sendPost("/api/register", {
                     "username": this.inputUsername,
                     "password": await sha256(this.inputPassword),
                 }, 'json')
@@ -767,7 +752,7 @@ const app=Vue.createApp({
             this.loginInProgress = true
             this.loginMessage = "正在登录..."
             try {
-                const data = await sendPost("/login", {
+                const data = await sendPost("/api/login", {
                     "username": this.inputUsername,
                     "password": await sha256(this.inputPassword),
                 }, 'json')
