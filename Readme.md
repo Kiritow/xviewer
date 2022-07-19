@@ -32,13 +32,23 @@ docker-compose pull && docker-compose build && docker-compose up -d
 
 ## 基础API接口
 
-- `GET /list` 获取所有视频文件信息
+| Method | API Path | 含义 |
+| -- | -- | -- |
+| GET | /api/list | 视频列表 |
+| GET | /api/search | 关键词搜索 |
+| GET | /api/recommend | 推荐视频列表 |
+| POST | /api/preferred | 个性化视频列表 |
+| POST | /api/video_played | 视频播放上报 |
+| POST | /api/video_playing | 视频播放时长上报 |
+| POST | /api/add_tag | 添加tag |
+| POST | /api/remove_tag | 删除tag |
+| POST | /api/add_fav | 添加收藏夹 |
+| POST | /api/remove_fav | 从收藏夹移除 |
+| POST | /api/favorites | 收藏夹列表 |
+| POST | /api/history | 播放历史 |
+| POST | /api/login | 登录 |
+| POST | /api/register | 注册 |
 
-- `GET /cover?id=...` 获取封面
-
-- `GET /video?id=...` 获取视频
-
-- `POST /video_played` 更新视频观看数
 
 ## 数据表设计
 
