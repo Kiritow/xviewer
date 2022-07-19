@@ -168,7 +168,7 @@
                         <span class="text">相似视频</span>
                         <div>
                             <a style="display: block;" v-for="(recinfo, recindex) in playingRecommends">
-                                <img class="reccover" v-bind:src="getCoverPath(recinfo.cid)" v-on:click="playRecommendVideo(index, recindex)" loading=lazy> <span class="text">{{recinfo.fname}}</span>
+                                <img class="reccover" v-bind:src="getObjectPath(recinfo.cid)" v-on:click="playRecommendVideo(index, recindex)" loading=lazy> <span class="text">{{recinfo.fname}}</span>
                             </a>
                         </div>
                     </div>
