@@ -1,18 +1,11 @@
 const fs=require('fs')
 const path=require('path')
-const promisify=require('util').promisify
-
 const koa = require('koa')
 const koaRouter = require('koa-router')
 const koaBodyParser = require('koa-bodyparser')
 const koaJson = require('koa-json')
-const koaStatic = require('koa-static')
-const koaPartialContent = require('koa-partial-content')
-
 const elasticsearch = require('elasticsearch')
-
 const DaoClass = require('./dao')
-
 
 const ROOT_DIR = '/data';
 const CDN_PREFIX = process.env.CDN_PREFIX;
@@ -52,19 +45,7 @@ app.use(async (ctx, next) => {
     }
 })
 
-const part = new koaPartialContent(path.join(ROOT_DIR, "objects"))
 const router = new koaRouter()
-
-// Tweaks
-part.isMedia = () => {
-    return true
-}
-
-router.get('/', async (ctx) => {
-    ctx.set('Cache-Control', 'no-cache')
-    ctx.set('Content-Type', 'text/html')
-    ctx.body = await promisify(fs.readFile)('static/index.html')
-})
 
 function GetHeatFromInfo(info, progressRatio) {
     const now = new Date()
@@ -94,7 +75,7 @@ function GetHeatFromInfo(info, progressRatio) {
     return heat;
 }
 
-router.get('/list', async (ctx) => {
+router.get('/api/list', async (ctx) => {
     try {
         const videos = await db.getVideoObjects()
         const videosIndex = new Map()
@@ -155,63 +136,6 @@ function isObjectExists(objectId) {
     })
 }
 
-router.get('/video', async (ctx) => {
-    if(ctx.query.id) {
-        console.log(`video ${ctx.query.id}`)
-        const prefix = ctx.query.id.substr(0, 2)
-        const resourcePath = `${prefix}/${ctx.query.id}`;
-        if (CDN_PREFIX) {
-            ctx.status = 307
-            ctx.redirect(`${CDN_PREFIX}/${resourcePath}`)
-            return
-        }
-
-        if (!await isObjectExists(ctx.query.id)) {
-            console.error(`[ERROR] video not found: ${ctx.query.id}`)
-
-            ctx.status = 404
-            ctx.body = "video not found"
-            return
-        }
-
-        return (part.middleware(resourcePath))(ctx)
-    }
-
-    console.error(`[ERROR] video not found: ${ctx.query.id}`)
-    ctx.status = 404
-    ctx.body = "video Not Found"
-})
-
-router.get('/cover', async (ctx) => {
-    if(ctx.query.id) {
-        console.log(`cover ${ctx.query.id}`)
-        const prefix = ctx.query.id.substr(0, 2)
-        const resourcePath = `${prefix}/${ctx.query.id}`;
-        if (CDN_PREFIX) {
-            ctx.status = 307
-            ctx.redirect(`${CDN_PREFIX}/${resourcePath}`)
-            return
-        }
-
-        if (!await isObjectExists(ctx.query.id)) {
-            console.error(`[ERROR] video not found: ${ctx.query.id}`)
-
-            ctx.status = 404
-            ctx.body = "cover not found"
-            return
-        }
-
-        ctx.set('Content-Type', 'image/png')
-        ctx.body = await promisify(fs.readFile)(path.join(ROOT_DIR, "objects", resourcePath))
-        return
-    }
-
-    console.error(`[ERROR] video not found: ${ctx.query.id}`)
-
-    ctx.status = 404
-    ctx.body = "cover not found"
-})
-
 async function ESSimpleSearch(keyword, size) {
     return (await esClient.search({
         index: ES_INDEX,
@@ -226,7 +150,7 @@ async function ESSimpleSearch(keyword, size) {
     })).hits.hits;
 }
 
-router.get('/search', async (ctx) => {
+router.get('/api/search', async (ctx) => {
     const kw = ctx.query.kw
     if (!kw) {
         ctx.status = 400
@@ -248,7 +172,7 @@ router.get('/search', async (ctx) => {
     ctx.body = tempArr
 })
 
-router.get('/recommend', async (ctx) => {
+router.get('/api/recommend', async (ctx) => {
     const fromId = ctx.query.from
     if (!fromId) {
         ctx.status = 400
@@ -276,7 +200,7 @@ router.get('/recommend', async (ctx) => {
     ctx.body = tempArr
 })
 
-router.post('/preferred', async (ctx) => {
+router.post('/api/preferred', async (ctx) => {
     const postData = ctx.request.body
     console.log(postData)
 
@@ -345,7 +269,7 @@ router.post('/preferred', async (ctx) => {
     }
 })
 
-router.post('/video_played', async (ctx) => {
+router.post('/api/video_played', async (ctx) => {
     const remoteIP = ctx.headers['x-forwarded-for'] || ctx.headers["x-real-ip"] || ctx.request.ip
     console.log(remoteIP)
 
@@ -379,7 +303,7 @@ router.post('/video_played', async (ctx) => {
     }
 })
 
-router.post('/video_playing', async (ctx) => {
+router.post('/api/video_playing', async (ctx) => {
     const postData = ctx.request.body
     console.log(postData)
 
@@ -408,7 +332,7 @@ router.post('/video_playing', async (ctx) => {
     }
 })
 
-router.post('/add_tag', async (ctx) => {
+router.post('/api/add_tag', async (ctx) => {
     const postData = ctx.request.body
     console.log(postData)
 
@@ -421,7 +345,7 @@ router.post('/add_tag', async (ctx) => {
     ctx.body = "OK"
 })
 
-router.post('/remove_tag', async (ctx) => {
+router.post('/api/remove_tag', async (ctx) => {
     const postData = ctx.request.body
     console.log(postData)
 
@@ -434,7 +358,7 @@ router.post('/remove_tag', async (ctx) => {
     ctx.body = "OK"
 })
 
-router.post('/add_fav', async (ctx) => {
+router.post('/api/add_fav', async (ctx) => {
     const postData = ctx.request.body
     console.log(postData)
 
@@ -447,7 +371,7 @@ router.post('/add_fav', async (ctx) => {
     ctx.body = "OK"
 })
 
-router.post('/remove_fav', async (ctx) => {
+router.post('/api/remove_fav', async (ctx) => {
     const postData = ctx.request.body
     console.log(postData)
 
@@ -460,7 +384,7 @@ router.post('/remove_fav', async (ctx) => {
     ctx.body = "OK"
 })
 
-router.post('/favorites', async (ctx) => {
+router.post('/api/favorites', async (ctx) => {
     const postData = ctx.request.body
     console.log(postData)
 
@@ -469,7 +393,7 @@ router.post('/favorites', async (ctx) => {
     ctx.body = await db.getFavByTicket(ticket)
 })
 
-router.post('/history', async (ctx) => {
+router.post('/api/history', async (ctx) => {
     const postData = ctx.request.body
     console.log(postData)
 
@@ -480,7 +404,7 @@ router.post('/history', async (ctx) => {
     ctx.body = await db.getHistoryByTicket(ticket)
 })
 
-router.post('/login', async (ctx) => {
+router.post('/api/login', async (ctx) => {
     const postData = ctx.request.body
     console.log(postData)
 
@@ -498,7 +422,7 @@ router.post('/login', async (ctx) => {
     }
 })
 
-router.post('/register', async (ctx) => {
+router.post('/api/register', async (ctx) => {
     const postData = ctx.request.body
     console.log(postData)
 
@@ -516,7 +440,6 @@ router.post('/register', async (ctx) => {
     }
 })
 
-app.use(koaStatic(path.join(__dirname, "static")))
 app.use(router.routes()).use(router.allowedMethods())
 
 
