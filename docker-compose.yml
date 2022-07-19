@@ -60,4 +60,5 @@ services:
             - /mnt/faaq:/data
             - ./local:/root/local
 volumes:
+    datavol:
     esvol:
