@@ -12,6 +12,7 @@ import os
 import sys
 import hashlib
 import subprocess
+from typing import List
 import uuid
 import time
 import json
@@ -25,16 +26,16 @@ OBJECT_PATH = '/data/objects'
 PENDING_PATH = '/data/pending'
 
 
-def write_progress(content):
+def write_progress(content: str):
     sys.stdout.write("\033[2K\r{}".format(content))
     time.sleep(0.1)
 
 
-def write_finish(content):
+def write_finish(content: str):
     sys.stdout.write("\033[2K\r{}\n".format(content))
 
 
-def readable_bytes(size):
+def readable_bytes(size: int):
     if size < 1024:
         return "{}B".format(size)
     if size < 1024 * 1024:
@@ -44,7 +45,7 @@ def readable_bytes(size):
     return "{}GB".format(round(size / 1024 / 1024 / 1024, 2))
 
 
-def get_file_hash(filepath):
+def get_file_hash(filepath: str):
     bytes_read = 0
     bytes_total = os.stat(filepath).st_size
     read_size = 32 * 1024 * 1024
@@ -73,18 +74,18 @@ def get_file_hash(filepath):
     return sha.hexdigest()
 
 
-def get_file_hash_system(filepath):
-    return subprocess.check_output(["sha256sum", filepath]).decode().split()[0]
+def get_file_hash_system(filepath: str):
+    return subprocess.check_output(["sha256sum", filepath], encoding='utf-8').split()[0]
 
 
-def generate_cover(video_path):
+def generate_cover(video_path: str):
     cover_path = os.path.join(TEMP_PATH, "{}.png".format(uuid.uuid4()))
     print("Generating cover for {} to {}...".format(video_path, cover_path))
     subprocess.check_call(["ffmpeg", "-ss", "00:00:05.000", "-i", video_path, "-vframes", "1", cover_path, "-y"])
     return cover_path, get_file_hash_system(cover_path)
 
 
-def add_video(fullpath, filename, tags=None):
+def add_video(fullpath: str, filename: str, tags: List[str]=None, detect_cover=False, cover_extension: List[str]=None):
     conn = UniCon.connect_mysql(os.getenv("DB_HOST"), int(os.getenv("DB_PORT")), os.getenv("DB_USER"), os.getenv("DB_PASS"), os.getenv("DB_NAME"))
     result = conn.query("select * from objects")
     idset = {row['id']: row['filename'] for row in result}
@@ -95,12 +96,34 @@ def add_video(fullpath, filename, tags=None):
         print("[Skipped] Video already exists: {}\n  Record name: {}\n  hash: {}".format(filename, idset[video_hash], video_hash))
         return False
 
-    cover_path, cover_hash = generate_cover(fullpath)
-    if cover_hash in idset:
-        print("[Ignored] Cover {} already exists. Previous name is: {}".format(cover_hash, idset[cover_hash]))
-        cover_new = False
-    else:
-        cover_new = True
+    cover_path = None
+    
+    if detect_cover:
+        real_cover_extnames = cover_extension or [".png", ".jpg", ".jpeg"]
+        video_dir = os.path.dirname(fullpath)
+        for extname in real_cover_extnames:
+            parts = filename.split('.')
+            possible_path = os.path.join(video_dir, '.'.join(parts[:-1]) + extname)
+            if os.path.exists(possible_path):
+                print("Cover file selected: {}".format(possible_path))
+                cover_path = possible_path
+                cover_hash = get_file_hash_system(possible_path)
+                if cover_hash in idset:
+                    print("[Ignored] Cover {} already exists. Previous name is: {}".format(cover_hash, idset[cover_hash]))
+                    cover_new = False
+                else:
+                    cover_new = True
+                break
+        else:
+            print("Cover not detected for video: {}, tried extnames: {}".format(filename, ', '.join(real_cover_extnames)))
+
+    if not cover_path:
+        cover_path, cover_hash = generate_cover(fullpath)
+        if cover_hash in idset:
+            print("[Ignored] Cover {} already exists. Previous name is: {}".format(cover_hash, idset[cover_hash]))
+            cover_new = False
+        else:
+            cover_new = True
 
     print("Reading video file info...")
     video_info = os.stat(fullpath)
@@ -187,4 +210,4 @@ if __name__ == "__main__":
     print("{} tasks found".format(len(tasks)))
 
     for fullpath, filename, tags in tasks:
-        add_video(fullpath, filename, tags)
+        add_video(fullpath, filename, tags, True)
