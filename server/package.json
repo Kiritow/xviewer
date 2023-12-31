@@ -4,14 +4,17 @@
   "description": "X Viewer",
   "main": "app.js",
   "dependencies": {
-    "elasticsearch": "^16.7.2",
+    "@elastic/elasticsearch": "^7.17.12",
+    "callsite": "^1.0.0",
     "koa": "^2.13.0",
     "koa-bodyparser": "^4.3.0",
     "koa-json": "^2.0.2",
     "koa-partial-content": "^2.0.1",
     "koa-router": "^9.4.0",
     "koa-static": "^5.0.0",
-    "mysql": "^2.18.1"
+    "moment": "^2.29.4",
+    "mysql": "^2.18.1",
+    "winston": "^3.10.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
