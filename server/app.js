@@ -4,14 +4,19 @@ const koa = require('koa')
 const koaRouter = require('koa-router')
 const koaBodyParser = require('koa-bodyparser')
 const koaJson = require('koa-json')
-const elasticsearch = require('elasticsearch')
+const { Client: ESClient } = require('@elastic/elasticsearch')
 const DaoClass = require('./dao')
+const logger = require('./base-log')('app', {
+    level: 'debug',
+})
 
-const ROOT_DIR = '/data';
+const ROOT_DIR = process.env.ROOT_DIR || '/data';
+const LISTEN_PORT = parseInt(process.env.LISTEN_PORT || '80', 10)
 const CDN_PREFIX = process.env.CDN_PREFIX;
 const ES_HOST = process.env.ES_HOST;
+const ES_PORT = parseInt(process.env.ES_PORT || '9200', 10)
 const ES_INDEX = process.env.ES_INDEX;
-const XVIEWER_VERSION = JSON.parse(fs.readFileSync("package.json")).version
+const XVIEWER_VERSION = JSON.parse(fs.readFileSync("package.json", 'utf-8')).version
 const db = new DaoClass({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
@@ -20,10 +25,8 @@ const db = new DaoClass({
     database: process.env.DB_NAME,
 });
 
-const esClient = elasticsearch.Client({
-    host: `http://${ES_HOST}:9200`,
-    log: 'trace',
-    apiVersion: '7.x'
+const esClient = new ESClient({
+    node: `http://${ES_HOST}:${ES_PORT}`,
 })
 
 const app = new koa()
@@ -31,15 +34,15 @@ app.use(koaBodyParser())
 app.use(koaJson())
 app.use(async (ctx, next) => {
     if(ctx.url.startsWith("/video")) {
-        console.log(`${ctx.method} ${ctx.url} headers=${JSON.stringify(ctx.headers)}`)
+        logger.info(`${ctx.method} ${ctx.url} headers=${JSON.stringify(ctx.headers)}`)
     } else {
-        console.log(`${ctx.method} ${ctx.url}`)
+        logger.info(`${ctx.method} ${ctx.url}`)
     }
 
     try {
         await next()
     } catch (e) {
-        console.log(`${ctx.method} ${ctx.url} error: ${e}`)
+        logger.info(`${ctx.method} ${ctx.url} error: ${e}`)
         ctx.status = 500
         ctx.body = "Server internal error"
     }
@@ -48,7 +51,7 @@ app.use(async (ctx, next) => {
 const router = new koaRouter()
 
 function GetHeatFromInfo(info, progressRatio) {
-    const now = new Date()
+    const now = new Date().getTime()
     let heat = 0
     if (now - info.createtime < 1000*60*60*24*30) {
         heat += 200;
@@ -120,7 +123,7 @@ router.get('/api/list', async (ctx) => {
             cdnPrefix: CDN_PREFIX,
         }
     } catch (e) {
-        console.log(e)
+        logger.error(e)
         ctx.status = 500
         ctx.body = "Server Error"
     }
@@ -137,9 +140,9 @@ function isObjectExists(objectId) {
 }
 
 async function ESSimpleSearch(keyword, size) {
-    return (await esClient.search({
+    const result = await esClient.search({
         index: ES_INDEX,
-        size: size,
+        size,
         body: {
             query: {
                 match: {
@@ -147,7 +150,10 @@ async function ESSimpleSearch(keyword, size) {
                 }
             }
         }
-    })).hits.hits;
+    })
+
+    logger.debug(result.body)
+    return result.body.hits.hits
 }
 
 router.get('/api/search', async (ctx) => {
@@ -202,7 +208,7 @@ router.get('/api/recommend', async (ctx) => {
 
 router.post('/api/preferred', async (ctx) => {
     const postData = ctx.request.body
-    console.log(postData)
+    logger.info(postData)
 
     let ticket = postData.ticket
     if (!ticket || ticket.length < 1) {
@@ -260,7 +266,7 @@ router.post('/api/preferred', async (ctx) => {
             }
         }
     } catch (e) {
-        console.log(e)
+        logger.error(e)
         ctx.status = 500
         ctx.body = {
             code: -1,
@@ -271,18 +277,18 @@ router.post('/api/preferred', async (ctx) => {
 
 router.post('/api/video_played', async (ctx) => {
     const remoteIP = ctx.headers['x-forwarded-for'] || ctx.headers["x-real-ip"] || ctx.request.ip
-    console.log(remoteIP)
+    logger.info(remoteIP)
 
     const postData = ctx.request.body
-    console.log(postData)
-    
+    logger.info(postData)
+
     const videoID = postData.id
     let ticket = postData.ticket
     if (!ticket || ticket.length < 1) {
         ticket = null
     }
 
-    console.log(`AddVideoCount: ${remoteIP} ${videoID} ${ticket}`)
+    logger.info(`AddVideoCount: ${remoteIP} ${videoID} ${ticket}`)
     try {
         await db.addVideoWatchByID(videoID)
         const insertId = await db.addVideoWatchHistory(ticket, remoteIP, videoID)
@@ -294,7 +300,7 @@ router.post('/api/video_played', async (ctx) => {
             }
         }
     } catch (e) {
-        console.log(e)
+        logger.error(e)
         ctx.status = 500
         ctx.body = {
             code: -1,
@@ -305,7 +311,7 @@ router.post('/api/video_played', async (ctx) => {
 
 router.post('/api/video_playing', async (ctx) => {
     const postData = ctx.request.body
-    console.log(postData)
+    logger.info(postData)
 
     const { sess, duration } = postData
     if (!sess || !duration) {
@@ -323,7 +329,7 @@ router.post('/api/video_playing', async (ctx) => {
             message: 'success',
         }
     } catch (e) {
-        console.log(e)
+        logger.error(e)
         ctx.status = 500
         ctx.body = {
             code: -1,
@@ -334,12 +340,12 @@ router.post('/api/video_playing', async (ctx) => {
 
 router.post('/api/add_tag', async (ctx) => {
     const postData = ctx.request.body
-    console.log(postData)
+    logger.info(postData)
 
     const videoID = postData.id
     const tagValue = postData.tag
 
-    console.log(`AddTag: video=${videoID} tag=${tagValue}`)
+    logger.info(`AddTag: video=${videoID} tag=${tagValue}`)
     await db.addVideoTag(videoID, tagValue)
 
     ctx.body = "OK"
@@ -347,12 +353,12 @@ router.post('/api/add_tag', async (ctx) => {
 
 router.post('/api/remove_tag', async (ctx) => {
     const postData = ctx.request.body
-    console.log(postData)
+    logger.info(postData)
 
     const videoID = postData.id
     const tagValue = postData.tag
 
-    console.log(`RemoveTag: video=${videoID} tag=${tagValue}`)
+    logger.info(`RemoveTag: video=${videoID} tag=${tagValue}`)
     await db.removeVideoTag(videoID, tagValue)
 
     ctx.body = "OK"
@@ -360,12 +366,12 @@ router.post('/api/remove_tag', async (ctx) => {
 
 router.post('/api/add_fav', async (ctx) => {
     const postData = ctx.request.body
-    console.log(postData)
+    logger.info(postData)
 
     const videoID = postData.id
     const ticket = postData.ticket
 
-    console.log(`AddUserFav: video=${videoID} user=${ticket}`)
+    logger.info(`AddUserFav: video=${videoID} user=${ticket}`)
     await db.addVideoFav(ticket, videoID)
 
     ctx.body = "OK"
@@ -373,12 +379,12 @@ router.post('/api/add_fav', async (ctx) => {
 
 router.post('/api/remove_fav', async (ctx) => {
     const postData = ctx.request.body
-    console.log(postData)
+    logger.info(postData)
 
     const videoID = postData.id
     const ticket = postData.ticket
 
-    console.log(`RemoveUserFav: video=${videoID} user=${ticket}`)
+    logger.info(`RemoveUserFav: video=${videoID} user=${ticket}`)
     await db.removeVideoFav(ticket, videoID)
 
     ctx.body = "OK"
@@ -386,7 +392,7 @@ router.post('/api/remove_fav', async (ctx) => {
 
 router.post('/api/favorites', async (ctx) => {
     const postData = ctx.request.body
-    console.log(postData)
+    logger.info(postData)
 
     const ticket = postData.ticket
 
@@ -395,18 +401,18 @@ router.post('/api/favorites', async (ctx) => {
 
 router.post('/api/history', async (ctx) => {
     const postData = ctx.request.body
-    console.log(postData)
+    logger.info(postData)
 
     const ticket = postData.ticket
 
-    console.log(`history ${ticket}`)
+    logger.info(`history ${ticket}`)
 
     ctx.body = await db.getHistoryByTicket(ticket)
 })
 
 router.post('/api/login', async (ctx) => {
     const postData = ctx.request.body
-    console.log(postData)
+    logger.info(postData)
 
     const username = postData.username
     const passhash = postData.password
@@ -416,7 +422,7 @@ router.post('/api/login', async (ctx) => {
         ctx.status = 200
         ctx.body = data
     } catch (e) {
-        console.log(e)
+        logger.error(e)
         ctx.status = 403
         ctx.body = "login failed"
     }
@@ -424,7 +430,7 @@ router.post('/api/login', async (ctx) => {
 
 router.post('/api/register', async (ctx) => {
     const postData = ctx.request.body
-    console.log(postData)
+    logger.info(postData)
 
     const username = postData.username
     const passhash = postData.password
@@ -434,7 +440,7 @@ router.post('/api/register', async (ctx) => {
         ctx.status = 200
         ctx.body = data
     } catch (e) {
-        console.log(e)
+        logger.error(e)
         ctx.status = 403
         ctx.body = "register failed"
     }
@@ -445,32 +451,28 @@ app.use(router.routes()).use(router.allowedMethods())
 
 async function PreReadObjectList() {
     const objLst = await db.getAllObjectID()
-    const cntFailed = 0
+    let cntFailed = 0
     await Promise.all(objLst.map((async (objId) => {
         if (!await isObjectExists(objId)) {
             ++cntFailed
-            console.log(`[WARN] object ${objId} not found on disk`)
+            logger.info(`[WARN] object ${objId} not found on disk`)
         }
     })))
-    console.log(`${objLst.length} objects checked. ${cntFailed} objects not found.`)
+
+    logger.warn(`${objLst.length} objects checked. ${cntFailed} objects not found.`)
 }
 
 async function main() {
-    console.log(`Backend version: ${XVIEWER_VERSION}`)
-    console.log('Object list pre-reading...')
+    logger.info(`Backend version: ${XVIEWER_VERSION}`)
+    logger.info('Object list pre-reading...')
     await PreReadObjectList()
-    // console.log("Comparing database with objects on disk...")
-    // const cntObjects = await CompareObjects()
-    // console.log(`[Done] All ${cntObjects} objects found on disk.`)
-    console.log("Starting web server...")
-    app.listen(80)
+    logger.info("Starting web server...")
+    app.listen(LISTEN_PORT)
 }
 
-let _tmServBefore=new Date()
+const serverStartTime = new Date().getTime()
 main().then(()=>{
-    console.log(`[Done] Server started in ${(new Date()-_tmServBefore)/1000}s.`)
+    logger.info(`[Done] Server started in ${(new Date().getTime() - serverStartTime)/1000}s.`)
 }).catch((err)=>{
-    console.log(`[Fatal] Exception caught: ${err}`)
-    console.log("Shutting down server...")
-    db.close()
+    logger.error(`[Fatal] Exception caught: ${err}`)
 })
