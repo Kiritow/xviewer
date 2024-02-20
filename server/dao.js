@@ -54,7 +54,7 @@ class DaoClass extends BaseDaoClass {
     }
 
     async getVideoObjects() {
-        const results = await this.query("select videos.id,coverid,filename,mtime,fsize,videotime,watchcount,videos.createtime,videos.updatetime,tags from videos inner join objects on videos.id=objects.id ", [])
+        const results = await this.query("select videos.id,coverid,filename,mtime,fsize,videotime,watchcount,vote,videos.createtime,videos.updatetime,tags from videos inner join objects on videos.id=objects.id ", [])
         return results.map(row => ({
             id: row.id,
             cid: row.coverid,
@@ -63,6 +63,7 @@ class DaoClass extends BaseDaoClass {
             fsize: row.fsize,
             vtime: row.videotime,
             watchcount: row.watchcount,
+            vote: row.vote,
             createtime: row.createtime,
             updatetime: row.updatetime,
             tags: JSON.parse(row.tags || "[]"),
@@ -96,6 +97,10 @@ class DaoClass extends BaseDaoClass {
 
     async updateVideoWatchHistory(watchId, duration) {
         await this.query("update history set watchtime=? where watchid=?", [duration, watchId])
+    }
+
+    async voteVideo(objID, vote) {
+        await this.query("update videos set vote=vote+? where id=?", [vote, objID])
     }
 
     async addVideoTag(objID, value) {

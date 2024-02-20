@@ -210,9 +210,16 @@ router.post('/api/preferred', async (ctx) => {
     const postData = ctx.request.body
     logger.info(postData)
 
-    let ticket = postData.ticket
+    const { ticket } = postData
     if (!ticket || ticket.length < 1) {
-        ticket = null
+        ctx.body = {
+            code: 0,
+            message: 'success',
+            data: {
+                videos: [],
+            }
+        }
+        return
     }
 
     try {
@@ -386,6 +393,28 @@ router.post('/api/remove_fav', async (ctx) => {
 
     logger.info(`RemoveUserFav: video=${videoID} user=${ticket}`)
     await db.removeVideoFav(ticket, videoID)
+
+    ctx.body = "OK"
+})
+
+router.post('/api/thumbs_up', async ctx => {
+    logger.info(ctx.request.body)
+
+    const { id: videoID } = ctx.request.body
+
+    logger.info(`ThumbsUp: video=${videoID}`)
+    await db.voteVideo(videoID, 1)
+
+    ctx.body = "OK"
+})
+
+router.post('/api/thumbs_down', async ctx => {
+    logger.info(ctx.request.body)
+
+    const { id: videoID } = ctx.request.body
+
+    logger.info(`ThumbsUp: video=${videoID}`)
+    await db.voteVideo(videoID, -1)
 
     ctx.body = "OK"
 })

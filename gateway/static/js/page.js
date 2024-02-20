@@ -1,3 +1,5 @@
+"use strict";
+
 function sendPost(url, data, dataType) {
     return new Promise((resolve, reject) => {
         $.post(url, data, dataType).then(resolve).catch(reject)
@@ -85,11 +87,18 @@ const app=Vue.createApp({
 
     },
     methods: {
-        getObjectPath(oid) {
+        getVideoObjectPath(oid) {
             if (this.cdnPrefix && this.cdnPrefix.length > 0) {
                 return `${this.cdnPrefix}/${oid}`
             } else {
-                return `/object/${oid.substring(0,2)}/${oid}`
+                return `/video/${oid.substring(0,2)}/${oid}`
+            }
+        },
+        getImageObjectPath(oid) {
+            if (this.cdnPrefix && this.cdnPrefix.length > 0) {
+                return `${this.cdnPrefix}/${oid}`
+            } else {
+                return `/image/${oid.substring(0,2)}/${oid}`
             }
         },
         async reloadVideoList() {
@@ -100,6 +109,9 @@ const app=Vue.createApp({
             this.alists = res.videos
             this.alistIndex = new Map()
             res.videos.forEach((info) => this.alistIndex.set(info.id, info))
+
+            // sort by vote
+            this.alists.sort((a, b) => b.vote - a.vote)
 
             this.cdnPrefix = res.cdnPrefix
             if (this.cdnPrefix && this.cdnPrefix.length > 0) {
@@ -256,7 +268,7 @@ const app=Vue.createApp({
         },
         adjustVideo(e) {
             console.log('adjust video')
-            let video=e.srcElement
+            const video=e.srcElement
             if(video.getAttribute('adjusted') != 'yes') {
                 if(video.videoWidth < 1024 || video.videoHeight < 768) {
                     console.log(`video: width=${video.videoWidth} height: ${video.videoHeight}`)
@@ -266,6 +278,7 @@ const app=Vue.createApp({
                 }
             }
             video.currentTime = 0
+            video.play()
 
             // const eventNames = ["abort", "canplay", "canplaythrough", "durationchange", "emptied", "ended", "error", "interruptbegin", "interruptend", "loadeddata", "loadstart", "mozaudioavailable", "pause", "play", "playing", "progress", "ratechange", "seeked", "seeking", "stalled", "suspend", "timeupdate", "volumechange", "waiting"]
             // let lastEventTime = new Date()
@@ -709,6 +722,23 @@ const app=Vue.createApp({
             this.dlists = tempList
             this.showoffset = 0
             this.updateVisual()
+        },
+        async voteThumbsUp(id) {
+            console.log(`thumbs up ${id}`)
+            try {
+                await sendPost('/api/thumbs_up', { id }, 'json')
+            } catch (e) {
+                console.log(e)
+            }
+        },
+        async voteThumbsDown(id) {
+            console.log(`thumbs down ${id}`)
+
+            try {
+                await sendPost('/api/thumbs_down', { id }, 'json')
+            } catch (e) {
+                console.log(e)
+            }
         },
         async register() {
             if (!this.inputUsername || this.inputUsername.length < 1 || !this.inputPassword || this.inputPassword.length < 1) {
