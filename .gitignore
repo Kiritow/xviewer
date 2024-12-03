@@ -1,5 +1,11 @@
-# Node stuff
+# NodeJS stuff
+dist/
 node_modules/
+
+# Python
+*.pyc
+__pycache__
+.mypy_cache
 
 # VSCode stuff
 .vscode/
@@ -17,8 +23,4 @@ config/*.json
 *.log
 
 # This is just for test purpose.
-test.js
-
-# No lock file
-package-lock.json
-
+tests/

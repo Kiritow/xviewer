@@ -1,0 +1,28 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "esModuleInterop": true,
+        "target": "ES2022",
+        "noImplicitAny": true,
+        "moduleResolution": "node",
+        "sourceMap": true,
+        "outDir": "dist",
+        "baseUrl": "./src",
+        "strict": true,
+        "declaration": true,
+        "noFallthroughCasesInSwitch": true,
+        "lib": [
+            "ES2022"
+        ],
+        "types": [
+            "node"
+        ],
+        "typeRoots": [
+            "types",
+            "node_modules/@types"
+        ]
+    },
+    "include": [
+        "src/**/*"
+    ]
+}
