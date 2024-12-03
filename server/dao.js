@@ -81,8 +81,15 @@ class DaoClass extends BaseDaoClass {
         }))
     }
 
-    async addVideoWatchByID(objID) {
+    async getVideoTranscode() {
+        return await this.query(`select * from transcode where encname!=''`)
+    }
+
+    async addVideoWatchByID(objID, isTranscode) {
         await this.query("update videos set watchcount=watchcount+1 where id=?", [objID])
+        if (isTranscode) {
+            await this.query('update transcode set watchcount=watchcount+1 where id=?', [objID])
+        }
     }
 
     async addVideoWatchHistory(ticket, remoteIP, objID) {
@@ -101,6 +108,10 @@ class DaoClass extends BaseDaoClass {
 
     async voteVideo(objID, vote) {
         await this.query("update videos set vote=vote+? where id=?", [vote, objID])
+    }
+
+    async addTranscodeTask(objID) {
+        await this.query("insert into transcode(id) values (?) on duplicate key update encname=?", [objID, ''])
     }
 
     async addVideoTag(objID, value) {

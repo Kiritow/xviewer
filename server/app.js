@@ -91,6 +91,15 @@ router.get('/api/list', async (ctx) => {
             }
         })
 
+        const videoTranscodeTasks = await db.getVideoTranscode()
+        videoTranscodeTasks.forEach(row => {
+            if (videosIndex.has(row.id)) {
+                Object.assign(videosIndex.get(row.id), {
+                    transcode: row.encname,
+                })
+            }
+        })
+
         const videoWatchModifier = new Map()
         const videoStatsFiltered = videoStats.filter((sinfo) => sinfo.progress != null)
         videoStatsFiltered.sort((a, b) => a.progress - b.progress)
@@ -286,18 +295,17 @@ router.post('/api/video_played', async (ctx) => {
     const remoteIP = ctx.headers['x-forwarded-for'] || ctx.headers["x-real-ip"] || ctx.request.ip
     logger.info(remoteIP)
 
-    const postData = ctx.request.body
-    logger.info(postData)
+    logger.info(ctx.request.body)
+    const { id: videoID, transcode: isTranscode } = ctx.request.body
+    let { ticket } = ctx.request.body
 
-    const videoID = postData.id
-    let ticket = postData.ticket
     if (!ticket || ticket.length < 1) {
         ticket = null
     }
 
     logger.info(`AddVideoCount: ${remoteIP} ${videoID} ${ticket}`)
     try {
-        await db.addVideoWatchByID(videoID)
+        await db.addVideoWatchByID(videoID, isTranscode)
         const insertId = await db.addVideoWatchHistory(ticket, remoteIP, videoID)
         ctx.body = {
             code: 0,
@@ -415,6 +423,17 @@ router.post('/api/thumbs_down', async ctx => {
 
     logger.info(`ThumbsUp: video=${videoID}`)
     await db.voteVideo(videoID, -1)
+
+    ctx.body = "OK"
+})
+
+router.post('/api/start_encode', async ctx => {
+    logger.info(ctx.request.body)
+
+    const { id: videoID } = ctx.request.body
+
+    logger.info(`StartEncode: video=${videoID}`)
+    await db.addTranscodeTask(videoID)
 
     ctx.body = "OK"
 })
