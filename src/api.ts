@@ -3,7 +3,7 @@ import z from "zod";
 import { dao } from "./common";
 import getOrCreateLogger from "./base-log";
 import { ESSimpleSearch, GetHeatFromInfo } from "./utils";
-import { getCurrentUser } from "session";
+import { getCurrentUser } from "./session";
 
 const CDN_PREFIX = process.env.CDN_PREFIX;
 

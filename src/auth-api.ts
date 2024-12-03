@@ -1,12 +1,25 @@
 import z from "zod";
 import koaRouter from "koa-router";
 import { dao } from "./common";
-import { setCurrentUser } from "session";
+import { getCurrentUser, setCurrentUser } from "./session";
 
 const router = new koaRouter({
     prefix: "/auth",
 });
 export default router;
+
+router.get("/user", (ctx) => {
+    const user = getCurrentUser(ctx);
+    if (user === undefined) {
+        ctx.status = 403;
+        return;
+    }
+
+    ctx.body = {
+        username: user.username,
+        uid: user.oldUid,
+    };
+});
 
 router.post("/login", async (ctx) => {
     const body = z
