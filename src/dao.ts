@@ -38,7 +38,7 @@ export class DaoClass extends BaseDaoClass {
 
     async getSingleVideoObject(videoId: string) {
         const results = await this.query(
-            "select videos.id,coverid,filename,mtime,fsize,videotime,watchcount,videos.createtime,videos.updatetime,tags from videos inner join objects on videos.id=objects.id where videos.id=?",
+            "select videos.id,coverid,filename,mtime,fsize,videotime,watchcount,vote,videos.createtime,videos.updatetime,tags from videos inner join objects on videos.id=objects.id where videos.id=?",
             [videoId]
         );
         if (results.length < 1) {
@@ -212,7 +212,7 @@ export class DaoClass extends BaseDaoClass {
         });
     }
 
-    async getValidUser(username: string, passhash: string) {
+    async getValidUser(username: string, password: string) {
         const uid = GetSha256(username);
         const result = await this.query("select * from accounts where uid=?", [
             uid,
@@ -222,6 +222,7 @@ export class DaoClass extends BaseDaoClass {
         }
 
         const info = result[0];
+        const passhash = GetSha256(password);
         if (GetSha256(`${uid}${passhash}${info.salt}`) === info.password) {
             return {
                 uid,
@@ -229,10 +230,11 @@ export class DaoClass extends BaseDaoClass {
             };
         }
 
+        console.log("invalid password");
         return null;
     }
 
-    async addUser(username: string, passhash: string) {
+    async addUser(username: string, password: string) {
         const uid = GetSha256(username);
         const result = await this.query("select * from accounts where uid=?", [
             uid,
@@ -241,6 +243,7 @@ export class DaoClass extends BaseDaoClass {
             throw new Error("username already exists.");
         }
         const salt = GenerateRandomSalt();
+        const passhash = GetSha256(password);
         const storagePass = GetSha256(`${uid}${passhash}${salt}`);
         await this.query(
             "insert into accounts(uid, username, password, salt) values (?,?,?,?)",

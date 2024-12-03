@@ -1,7 +1,7 @@
 import z from "zod";
 import koaRouter from "koa-router";
 import { dao } from "./common";
-import { getCurrentUser, setCurrentUser } from "./session";
+import { clearCurrentUser, getCurrentUser, setCurrentUser } from "./session";
 
 const router = new koaRouter({
     prefix: "/auth",
@@ -12,12 +12,21 @@ router.get("/user", (ctx) => {
     const user = getCurrentUser(ctx);
     if (user === undefined) {
         ctx.status = 403;
+        ctx.body = "not login";
         return;
     }
 
     ctx.body = {
         username: user.username,
         uid: user.oldUid,
+    };
+});
+
+router.get("/logout", (ctx) => {
+    clearCurrentUser(ctx);
+
+    ctx.body = {
+        message: "success",
     };
 });
 
@@ -32,9 +41,9 @@ router.post("/login", async (ctx) => {
         ctx.status = 400;
         return;
     }
-    const { username, password: passhash } = body.data;
+    const { username, password } = body.data;
 
-    const user = await dao.getValidUser(username, passhash);
+    const user = await dao.getValidUser(username, password);
     if (user === null) {
         ctx.status = 403;
         ctx.body = "login failed, invalid username or password";
@@ -66,9 +75,14 @@ router.post("/register", async (ctx) => {
         ctx.status = 400;
         return;
     }
-    const { username, password: passhash } = body.data;
+    const { username, password } = body.data;
+    if (username.length < 1 || password.length < 1) {
+        ctx.status = 400;
+        ctx.body = "invalid username or password";
+        return;
+    }
 
-    const newUserId = await dao.addUser(username, passhash);
+    const newUserId = await dao.addUser(username, password);
     setCurrentUser(ctx, {
         oldUid: newUserId,
         userId: 0,

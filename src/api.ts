@@ -125,7 +125,7 @@ router.get("/recommend", async (ctx) => {
     ctx.body = [...new Set(result)];
 });
 
-router.post("/preferred", async (ctx) => {
+router.get("/preferred", async (ctx) => {
     const user = getCurrentUser(ctx);
     if (user === undefined) {
         ctx.body = {
@@ -283,7 +283,7 @@ router.post("/add_tag", async (ctx) => {
     logger.info(`AddTag: video=${videoID} tag=${tagValue}`);
     await dao.addVideoTag(videoID, tagValue);
 
-    ctx.body = "OK";
+    ctx.body = { message: "success" };
 });
 
 router.post("/remove_tag", async (ctx) => {
@@ -302,13 +302,13 @@ router.post("/remove_tag", async (ctx) => {
     logger.info(`RemoveTag: video=${videoID} tag=${tagValue}`);
     await dao.removeVideoTag(videoID, tagValue);
 
-    ctx.body = "OK";
+    ctx.body = { message: "success" };
 });
 
 router.post("/add_fav", async (ctx) => {
     const user = getCurrentUser(ctx);
     if (user === undefined) {
-        ctx.body = "OK";
+        ctx.body = { message: "success" };
         return;
     }
 
@@ -326,13 +326,13 @@ router.post("/add_fav", async (ctx) => {
     logger.info(`AddUserFav: video=${videoID} user=${user.username}`);
     await dao.addVideoFav(user.oldUid, videoID);
 
-    ctx.body = "OK";
+    ctx.body = { message: "success" };
 });
 
 router.post("/remove_fav", async (ctx) => {
     const user = getCurrentUser(ctx);
     if (user === undefined) {
-        ctx.body = "OK";
+        ctx.body = { message: "success" };
         return;
     }
 
@@ -350,7 +350,7 @@ router.post("/remove_fav", async (ctx) => {
     logger.info(`RemoveUserFav: video=${videoID} user=${user.username}`);
     await dao.removeVideoFav(user.oldUid, videoID);
 
-    ctx.body = "OK";
+    ctx.body = { message: "success" };
 });
 
 router.post("/thumbs_up", async (ctx) => {
@@ -368,7 +368,7 @@ router.post("/thumbs_up", async (ctx) => {
     logger.info(`ThumbsUp: video=${videoID}`);
     await dao.voteVideo(videoID, 1);
 
-    ctx.body = "OK";
+    ctx.body = { message: "success" };
 });
 
 router.post("/thumbs_down", async (ctx) => {
@@ -386,7 +386,7 @@ router.post("/thumbs_down", async (ctx) => {
     logger.info(`ThumbsUp: video=${videoID}`);
     await dao.voteVideo(videoID, -1);
 
-    ctx.body = "OK";
+    ctx.body = { message: "success" };
 });
 
 router.post("/start_encode", async (ctx) => {
@@ -404,10 +404,10 @@ router.post("/start_encode", async (ctx) => {
     logger.info(`StartEncode: video=${videoID}`);
     await dao.addTranscodeTask(videoID);
 
-    ctx.body = "OK";
+    ctx.body = { message: "success" };
 });
 
-router.post("/favorites", async (ctx) => {
+router.get("/favorites", async (ctx) => {
     const user = getCurrentUser(ctx);
     if (user === undefined) {
         ctx.body = [];
@@ -417,7 +417,7 @@ router.post("/favorites", async (ctx) => {
     ctx.body = await dao.getFavByUserId(user.oldUid);
 });
 
-router.post("/history", async (ctx) => {
+router.get("/history", async (ctx) => {
     const user = getCurrentUser(ctx);
     if (user === undefined) {
         ctx.body = [];

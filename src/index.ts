@@ -9,6 +9,7 @@ import apiRouter from "./api";
 import authRouter from "./auth-api";
 import { PreReadObjectList } from "./utils";
 import getOrCreateLogger from "./base-log";
+import { GetKoaAppKeys } from "./configs";
 
 const LISTEN_PORT = parseInt(process.env.LISTEN_PORT || "80", 10);
 const XVIEWER_VERSION = JSON.parse(
@@ -16,6 +17,7 @@ const XVIEWER_VERSION = JSON.parse(
 ).version;
 
 const app = new koa();
+app.keys = GetKoaAppKeys();
 app.use(
     koaSession(
         {
