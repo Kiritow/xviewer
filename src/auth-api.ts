@@ -1,6 +1,7 @@
 import z from "zod";
 import koaRouter from "koa-router";
 import { dao } from "./common";
+import { setCurrentUser } from "session";
 
 const router = new koaRouter({
     prefix: "/auth",
@@ -27,13 +28,17 @@ router.post("/login", async (ctx) => {
         return;
     }
 
-    const ticket = await dao.createTicket(user.uid, 12 * 3600 * 1000);
+    setCurrentUser(ctx, {
+        oldUid: user.uid,
+        userId: 0,
+        username: user.username,
+    });
+
     ctx.body = {
         code: 0,
         message: "success",
         username: user.username,
         uid: user.uid,
-        ticket,
     };
 });
 
@@ -51,12 +56,16 @@ router.post("/register", async (ctx) => {
     const { username, password: passhash } = body.data;
 
     const newUserId = await dao.addUser(username, passhash);
-    const ticket = await dao.createTicket(newUserId, 12 * 3600 * 1000);
+    setCurrentUser(ctx, {
+        oldUid: newUserId,
+        userId: 0,
+        username,
+    });
+
     ctx.body = {
         code: 0,
         message: "success",
         uid: newUserId,
         username,
-        ticket,
     };
 });

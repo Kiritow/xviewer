@@ -2,6 +2,7 @@ import "source-map-support/register";
 import fs from "fs";
 import koa from "koa";
 import koaBodyParser from "koa-bodyparser";
+import koaSession from "koa-session";
 import koaJson from "koa-json";
 import { NewAsyncRootMW } from "./mws";
 import apiRouter from "./api";
@@ -15,6 +16,21 @@ const XVIEWER_VERSION = JSON.parse(
 ).version;
 
 const app = new koa();
+app.use(
+    koaSession(
+        {
+            key: "ss_token",
+            maxAge: 86400000,
+            autoCommit: true,
+            overwrite: true,
+            httpOnly: true,
+            rolling: false,
+            renew: false,
+            secure: false,
+        },
+        app
+    )
+);
 app.use(koaBodyParser());
 app.use(koaJson());
 app.use(NewAsyncRootMW(true));

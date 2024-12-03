@@ -3,6 +3,7 @@ import z from "zod";
 import { dao } from "./common";
 import getOrCreateLogger from "./base-log";
 import { ESSimpleSearch, GetHeatFromInfo } from "./utils";
+import { getCurrentUser } from "session";
 
 const CDN_PREFIX = process.env.CDN_PREFIX;
 
@@ -125,18 +126,8 @@ router.get("/recommend", async (ctx) => {
 });
 
 router.post("/preferred", async (ctx) => {
-    const body = z
-        .object({
-            ticket: z.string().optional(),
-        })
-        .safeParse(ctx.request.body);
-    if (!body.success) {
-        ctx.status = 400;
-        return;
-    }
-    const { ticket } = body.data;
-
-    if (ticket === undefined || ticket.length < 1) {
+    const user = getCurrentUser(ctx);
+    if (user === undefined) {
         ctx.body = {
             code: 0,
             message: "success",
@@ -147,8 +138,8 @@ router.post("/preferred", async (ctx) => {
         return;
     }
 
-    const favVideoIds = await dao.getFavByTicket(ticket);
-    const history = await dao.getHistoryByTicket(ticket);
+    const favVideoIds = await dao.getFavByUserId(user.oldUid);
+    const history = await dao.getHistoryByUserId(user.oldUid);
 
     const tempSet = new Set<string>();
     for (let i = 0; i < 8; i++) {
@@ -223,11 +214,12 @@ router.post("/video_played", async (ctx) => {
         useRemoteIP = remoteIP;
     }
 
+    const user = getCurrentUser(ctx);
+
     const body = z
         .object({
             id: z.string(),
             transcode: z.boolean(),
-            ticket: z.string().optional(),
         })
         .parse(ctx.request.body);
     if (!body) {
@@ -235,13 +227,13 @@ router.post("/video_played", async (ctx) => {
         return;
     }
 
-    const { id: videoID, transcode: isTranscode, ticket } = body;
+    const { id: videoID, transcode: isTranscode } = body;
 
-    logger.info(`AddVideoCount: ${remoteIP} ${videoID} ${ticket}`);
+    logger.info(`AddVideoCount: ${remoteIP} ${videoID} ${user?.username}`);
 
     await dao.addVideoWatchByID(videoID, isTranscode);
     const insertId = await dao.addVideoWatchHistory(
-        ticket ?? "",
+        user?.oldUid || "",
         useRemoteIP,
         videoID
     );
@@ -249,7 +241,7 @@ router.post("/video_played", async (ctx) => {
         code: 0,
         message: "success",
         data: {
-            sess: insertId,
+            playid: insertId,
         },
     };
 });
@@ -257,7 +249,7 @@ router.post("/video_played", async (ctx) => {
 router.post("/video_playing", async (ctx) => {
     const body = z
         .object({
-            sess: z.number(),
+            playid: z.number(),
             duration: z.number(),
         })
         .safeParse(ctx.request.body);
@@ -266,9 +258,9 @@ router.post("/video_playing", async (ctx) => {
         return;
     }
 
-    const { sess, duration } = body.data;
+    const { playid, duration } = body.data;
 
-    await dao.updateVideoWatchHistory(sess, duration);
+    await dao.updateVideoWatchHistory(playid, duration);
     ctx.body = {
         code: 0,
         message: "success",
@@ -314,39 +306,49 @@ router.post("/remove_tag", async (ctx) => {
 });
 
 router.post("/add_fav", async (ctx) => {
+    const user = getCurrentUser(ctx);
+    if (user === undefined) {
+        ctx.body = "OK";
+        return;
+    }
+
     const body = z
         .object({
             id: z.string(),
-            ticket: z.string(),
         })
         .safeParse(ctx.request.body);
     if (!body.success) {
         ctx.status = 400;
         return;
     }
-    const { id: videoID, ticket } = body.data;
+    const { id: videoID } = body.data;
 
-    logger.info(`AddUserFav: video=${videoID} user=${ticket}`);
-    await dao.addVideoFav(ticket, videoID);
+    logger.info(`AddUserFav: video=${videoID} user=${user.username}`);
+    await dao.addVideoFav(user.oldUid, videoID);
 
     ctx.body = "OK";
 });
 
 router.post("/remove_fav", async (ctx) => {
+    const user = getCurrentUser(ctx);
+    if (user === undefined) {
+        ctx.body = "OK";
+        return;
+    }
+
     const body = z
         .object({
             id: z.string(),
-            ticket: z.string(),
         })
         .safeParse(ctx.request.body);
     if (!body.success) {
         ctx.status = 400;
         return;
     }
-    const { id: videoID, ticket } = body.data;
+    const { id: videoID } = body.data;
 
-    logger.info(`RemoveUserFav: video=${videoID} user=${ticket}`);
-    await dao.removeVideoFav(ticket, videoID);
+    logger.info(`RemoveUserFav: video=${videoID} user=${user.username}`);
+    await dao.removeVideoFav(user.oldUid, videoID);
 
     ctx.body = "OK";
 });
@@ -406,31 +408,21 @@ router.post("/start_encode", async (ctx) => {
 });
 
 router.post("/favorites", async (ctx) => {
-    const body = z
-        .object({
-            ticket: z.string(),
-        })
-        .safeParse(ctx.request.body);
-    if (!body.success) {
-        ctx.status = 400;
+    const user = getCurrentUser(ctx);
+    if (user === undefined) {
+        ctx.body = [];
         return;
     }
-    const { ticket } = body.data;
 
-    ctx.body = await dao.getFavByTicket(ticket);
+    ctx.body = await dao.getFavByUserId(user.oldUid);
 });
 
 router.post("/history", async (ctx) => {
-    const body = z
-        .object({
-            ticket: z.string(),
-        })
-        .safeParse(ctx.request.body);
-    if (!body.success) {
-        ctx.status = 400;
+    const user = getCurrentUser(ctx);
+    if (user === undefined) {
+        ctx.body = [];
         return;
     }
-    const { ticket } = body.data;
 
-    ctx.body = await dao.getHistoryByTicket(ticket);
+    ctx.body = await dao.getHistoryByUserId(user.oldUid);
 });

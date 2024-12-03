@@ -87,24 +87,18 @@ export class DaoClass extends BaseDaoClass {
         }
     }
 
-    async addVideoWatchHistory(
-        ticket: string,
-        remoteIP: string,
-        objID: string
-    ) {
-        const uid = await this.getUserIDByTicket(ticket);
-
+    async addVideoWatchHistory(uid: string, remoteIP: string, objID: string) {
         const result = await this.run(
             "insert into history(username, host, id) values (?,?,?)",
-            [uid ?? "", remoteIP, objID]
+            [uid, remoteIP, objID]
         );
         return result.insertId;
     }
 
-    async updateVideoWatchHistory(watchId: number, duration: number) {
+    async updateVideoWatchHistory(playId: number, duration: number) {
         await this.run("update history set watchtime=? where watchid=?", [
             duration,
-            watchId,
+            playId,
         ]);
     }
 
@@ -181,33 +175,21 @@ export class DaoClass extends BaseDaoClass {
         }
     }
 
-    async addVideoFav(ticket: string, objID: string) {
-        const uid = await this.getUserIDByTicket(ticket);
-        if (!uid) {
-            return;
-        }
+    async addVideoFav(uid: string, objID: string) {
         await this.query("insert into userfav(uid, id) values (?,?)", [
             uid,
             objID,
         ]);
     }
 
-    async removeVideoFav(ticket: string, objID: string) {
-        const uid = await this.getUserIDByTicket(ticket);
-        if (uid === null) {
-            return;
-        }
+    async removeVideoFav(uid: string, objID: string) {
         await this.query("delete from userfav where uid=? and id=?", [
             uid,
             objID,
         ]);
     }
 
-    async getFavByTicket(ticket: string): Promise<string[]> {
-        const uid = await this.getUserIDByTicket(ticket);
-        if (uid === null) {
-            return [];
-        }
+    async getFavByUserId(uid: string): Promise<string[]> {
         const result = await this.query(
             "select * from userfav where uid=? order by updatetime desc",
             [uid]
@@ -215,21 +197,7 @@ export class DaoClass extends BaseDaoClass {
         return result.map((info) => info.id);
     }
 
-    async getUserIDByTicket(ticket: string): Promise<string | null> {
-        const result = await this.query("select * from tickets where tid=?", [
-            ticket,
-        ]);
-        if (result.length < 1) {
-            return null;
-        }
-        return result[0].uid;
-    }
-
-    async getHistoryByTicket(ticket: string) {
-        const uid = await this.getUserIDByTicket(ticket);
-        if (uid === null) {
-            return [];
-        }
+    async getHistoryByUserId(uid: string) {
         const results = await this.query(
             "select id, max(updatetime) as lasttime from history where username=? group by id order by max(updatetime) desc",
             [uid]
@@ -242,15 +210,6 @@ export class DaoClass extends BaseDaoClass {
                 })
                 .parse(row);
         });
-    }
-
-    async createTicket(uid: string, durationMs: number) {
-        const ticket = GetSha256(`${uid}${GenerateRandomSalt()}${new Date()}`);
-        await this.query(
-            "insert into tickets(tid, uid, expiretime) values (?,?,?)",
-            [ticket, uid, new Date(Date.now() + durationMs)]
-        );
-        return ticket;
     }
 
     async getValidUser(username: string, passhash: string) {
