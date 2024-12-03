@@ -1,10 +1,10 @@
 import crypto from "crypto";
 import { BaseDaoClass } from "./base-dao";
 import {
-    ObjectInfo,
-    VideoObjectInfo,
-    VideoTranscodeInfo,
-    VideoWatchStat,
+    _objectSchema,
+    _videoObjectSchema,
+    _videoTranscodeSchema,
+    _videoWatchStatSchema,
 } from "./models";
 import { z } from "zod";
 
@@ -26,7 +26,7 @@ export class DaoClass extends BaseDaoClass {
             return null;
         }
 
-        return ObjectInfo.parse(results[0]);
+        return _objectSchema.parse(results[0]);
     }
 
     async getAllObjectID(): Promise<string[]> {
@@ -45,7 +45,7 @@ export class DaoClass extends BaseDaoClass {
             return null;
         }
 
-        return VideoObjectInfo.parse(results[0]);
+        return _videoObjectSchema.parse(results[0]);
     }
 
     async getVideoObjects() {
@@ -53,7 +53,7 @@ export class DaoClass extends BaseDaoClass {
             "select videos.id,coverid,filename,mtime,fsize,videotime,watchcount,vote,videos.createtime,videos.updatetime,tags from videos inner join objects on videos.id=objects.id ",
             []
         );
-        return results.map((row) => VideoObjectInfo.parse(row));
+        return results.map((row) => _videoObjectSchema.parse(row));
     }
 
     async getVideoWatchStat() {
@@ -63,7 +63,7 @@ export class DaoClass extends BaseDaoClass {
             from history where watchtime!=0 group by id`,
             []
         );
-        return results.map((row) => VideoWatchStat.parse(row));
+        return results.map((row) => _videoWatchStatSchema.parse(row));
     }
 
     async getVideoTranscodeTasks() {
@@ -71,7 +71,7 @@ export class DaoClass extends BaseDaoClass {
             `select * from transcode where encname!=''`,
             []
         );
-        return results.map((row) => VideoTranscodeInfo.parse(row));
+        return results.map((row) => _videoTranscodeSchema.parse(row));
     }
 
     async addVideoWatchByID(objID: string, isTranscode: boolean) {
@@ -290,5 +290,3 @@ export class DaoClass extends BaseDaoClass {
         return uid;
     }
 }
-
-module.exports = DaoClass;

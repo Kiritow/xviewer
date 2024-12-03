@@ -29,7 +29,7 @@ export function NewAsyncRootMW(showDebug?: boolean): Middleware {
                 ctx.status = e.statusCode;
                 ctx.body = e.statusMessage;
             } else {
-                logger.error(e);
+                console.log(e);
 
                 ctx.status = 500;
                 if (showDebug === true) {

@@ -1,3 +1,4 @@
+import "source-map-support/register";
 import fs from "fs";
 import koa from "koa";
 import koaBodyParser from "koa-bodyparser";

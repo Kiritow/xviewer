@@ -17,7 +17,9 @@ function zodParseJsonWithDefault(value: unknown) {
         try {
             return JSON.parse(s);
         } catch (e) {
-            if (e instanceof SyntaxError) { return value; }
+            if (e instanceof SyntaxError) {
+                return value;
+            }
             zctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 message: `error during JSON parsing: ${e instanceof Error ? e.message : e}`,
@@ -28,38 +30,41 @@ function zodParseJsonWithDefault(value: unknown) {
     };
 }
 
-export const ObjectInfo = z.object({
+export const _objectSchema = z.object({
     id: z.string(),
     filename: z.string(),
 });
 
-export type ObjectInfo = z.infer<typeof ObjectInfo>;
+export type ObjectInfo = z.infer<typeof _objectSchema>;
 
-export const VideoObjectInfo = z.object({
+export const _videoObjectSchema = z.object({
     id: z.string(),
     coverid: z.string(),
     filename: z.string(),
-    mtime: z.number(),
+    mtime: z.date(),
     fsize: z.number(),
     videotime: z.number(),
     watchcount: z.number(),
     vote: z.number(),
     createtime: z.date(),
     updatetime: z.date(),
-    tags: z.string().transform(zodParseJsonWithDefault).pipe(z.string().array()),
+    tags: z
+        .string()
+        .transform(zodParseJsonWithDefault([]))
+        .pipe(z.string().array()),
 });
 
-export type VideoObjectInfo = z.infer<typeof VideoObjectInfo>;
+export type VideoObjectInfo = z.infer<typeof _videoObjectSchema>;
 
-export const VideoWatchStat = z.object({
+export const _videoWatchStatSchema = z.object({
     id: z.string(),
-    totaltime: z.number(),
-    avgtime: z.number(),
+    totaltime: z.coerce.number(),
+    avgtime: z.coerce.number(),
 });
 
-export type VideoWatchStat = z.infer<typeof VideoWatchStat>;
+export type VideoWatchStat = z.infer<typeof _videoWatchStatSchema>;
 
-export const VideoTranscodeInfo = z.object({
+export const _videoTranscodeSchema = z.object({
     id: z.string(),
     encname: z.string(),
     watchcount: z.number(),
@@ -67,4 +72,4 @@ export const VideoTranscodeInfo = z.object({
     updatetime: z.date(),
 });
 
-export type VideoTranscodeInfo = z.infer<typeof VideoTranscodeInfo>;
+export type VideoTranscodeInfo = z.infer<typeof _videoTranscodeSchema>;
