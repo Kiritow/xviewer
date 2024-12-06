@@ -67,9 +67,14 @@ router.get("/list", async (ctx) => {
 
     const videoWithTranscode = videos.map((info) => {
         const task = videoTranscodeTasksIndex.get(info.id);
+        const encodeName = task?.encname;
+        if (encodeName !== undefined && encodeName === "") {
+            return info;
+        }
+
         return {
             ...info,
-            transcode: task?.id,
+            transcode: encodeName,
         };
     });
 
