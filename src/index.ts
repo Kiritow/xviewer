@@ -7,6 +7,7 @@ import koaJson from "koa-json";
 import { NewAsyncRootMW } from "./mws";
 import apiRouter from "./api";
 import authRouter from "./auth-api";
+import adminRouter from "./admin-api";
 import { PreReadObjectList } from "./utils";
 import getOrCreateLogger from "./base-log";
 import { GetKoaAppKeys } from "./configs";
@@ -22,7 +23,7 @@ app.use(
     koaSession(
         {
             key: "ss_token",
-            maxAge: 86400000,
+            maxAge: 7 * 24 * 3600 * 1000,
             autoCommit: true,
             overwrite: true,
             httpOnly: true,
@@ -38,6 +39,7 @@ app.use(koaJson());
 app.use(NewAsyncRootMW(true));
 app.use(authRouter.routes()).use(authRouter.allowedMethods());
 app.use(apiRouter.routes()).use(apiRouter.allowedMethods());
+app.use(adminRouter.routes()).use(adminRouter.allowedMethods());
 
 const logger = getOrCreateLogger("main", { level: "debug" });
 
@@ -49,5 +51,7 @@ const logger = getOrCreateLogger("main", { level: "debug" });
     await PreReadObjectList();
     logger.info("Starting web server...");
     app.listen(LISTEN_PORT);
-    logger.info(`Server started in ${(Date.now() - startTime) / 1000}s.`);
+    logger.info(
+        `Server started in ${(Date.now() - startTime) / 1000}s, listening on port ${LISTEN_PORT}`
+    );
 })();

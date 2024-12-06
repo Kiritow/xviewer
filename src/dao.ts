@@ -29,6 +29,11 @@ export class DaoClass extends BaseDaoClass {
         return _objectSchema.parse(results[0]);
     }
 
+    async getObjects() {
+        const results = await this.query("select * from objects", []);
+        return results.map((row) => _objectSchema.parse(row));
+    }
+
     async getAllObjectID(): Promise<string[]> {
         const results = await this.query("select id from objects", []);
         return results.map((row) => {

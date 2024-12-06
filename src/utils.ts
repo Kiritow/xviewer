@@ -4,11 +4,9 @@ import { VideoObjectInfo } from "./models";
 import { SearchResponse } from "@elastic/elasticsearch/api/types";
 import { dao, esClient } from "./common";
 import getOrCreateLogger from "./base-log";
+import { GetRootPath, GetESIndex } from "./configs";
 
 const logger = getOrCreateLogger("utils", { level: "debug" });
-
-const ROOT_DIR = process.env.ROOT_DIR || "/data";
-const ES_INDEX = process.env.ES_INDEX;
 
 export function GetHeatFromInfo(info: VideoObjectInfo, progressRatio: number) {
     const now = Date.now();
@@ -42,7 +40,7 @@ export function GetHeatFromInfo(info: VideoObjectInfo, progressRatio: number) {
 export function isObjectExists(objectId: string) {
     const prefix = objectId.substring(0, 2);
     const resourcePath = `${prefix}/${objectId}`;
-    const filePath = path.join(ROOT_DIR, "objects", resourcePath);
+    const filePath = path.join(GetRootPath(), "objects", resourcePath);
 
     return new Promise((resolve) => {
         fs.access(filePath, fs.constants.R_OK, (err) =>
@@ -58,7 +56,7 @@ interface ESDataType {
 
 export async function ESSimpleSearch(keyword: string, size: number) {
     const result = await esClient.search<SearchResponse<ESDataType>>({
-        index: ES_INDEX,
+        index: GetESIndex(),
         size,
         body: {
             query: {
@@ -69,7 +67,7 @@ export async function ESSimpleSearch(keyword: string, size: number) {
         },
     });
 
-    logger.debug(result.body);
+    // logger.debug(result.body);
     return result.body.hits.hits;
 }
 
