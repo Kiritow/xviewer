@@ -229,7 +229,7 @@ export class VideoManager {
                 ".rmvb",
                 ".avi",
             ];
-            if (!allowedExts.includes(ext)) {
+            if (!allowedExts.includes(ext.toLowerCase())) {
                 console.log(`Skip non-video file ${fullpath}`);
                 continue;
             }
