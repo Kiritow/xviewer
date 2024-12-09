@@ -166,7 +166,7 @@ export class VideoManager {
 
         if (coverPath === undefined) {
             coverPath = await GenerateCover(videoFullpath, this.tempDir);
-            isNewCover = true;
+            isNewCover = !this.objectMap.has(await GetFileHash(coverPath));
         }
 
         const videoStat = {
