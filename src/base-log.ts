@@ -14,12 +14,21 @@ export function lineNumber(level?: number) {
 
     const parts = e.stack!.split("\n");
     const line = parts[level ?? 0 + 2];
-    const location = line.match(/\(([^)]+)\)/g);
+    if (line === undefined) {
+        return "<unknown>";
+    }
+
+    const location = line.match(/\s+at\s+(.*?):(\d+):(\d+)/);
     if (location === null) {
         return "<unknown>";
     }
-    const locationParts = location[0].slice(1, -1).split(":");
-    return `${path.basename(locationParts[0])}:${locationParts[1]}`;
+
+    const filename = location[1];
+    const lineNumber = location[2];
+    if (filename.includes("(")) {
+        return `${path.basename(filename.substring(filename.indexOf("(") + 1))}:${lineNumber}`;
+    }
+    return `${path.basename(filename)}:${lineNumber}`;
 }
 
 interface LoggerOptions {
