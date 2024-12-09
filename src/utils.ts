@@ -73,15 +73,19 @@ export async function ESSimpleSearch(keyword: string, size: number) {
 
 export async function PreReadObjectList() {
     const objLst = await dao.getAllObjectID();
+    console.log(`${objLst.length} objects loaded from db`);
+
     let cntFailed = 0;
-    await Promise.all(
-        objLst.map(async (objId) => {
-            if (!(await isObjectExists(objId))) {
-                ++cntFailed;
-                logger.info(`[WARN] object ${objId} not found on disk`);
-            }
-        })
-    );
+    for (let i = 0; i < objLst.length; ++i) {
+        if (!(await isObjectExists(objLst[i]))) {
+            ++cntFailed;
+            logger.info(`[WARN] object ${objLst[i]} not found on disk`);
+        }
+
+        if (i % 1000 === 0) {
+            logger.info(`${i} of ${objLst.length} objects checked`);
+        }
+    }
 
     logger.warn(
         `${objLst.length} objects checked. ${cntFailed} objects not found.`
