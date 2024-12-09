@@ -1,14 +1,25 @@
-import { createLogger, format, transports } from "winston";
-import callsite from "callsite";
-import moment from "moment";
+import {
+    createLogger,
+    format,
+    transports,
+    Logger as WinstonLogger,
+} from "winston";
+import dayjs from "dayjs";
 import path from "path";
-import winston from "winston";
 
 const loggerMaps = new Map();
 
-function lineNumber() {
-    const stk = callsite()[3];
-    return `${path.basename(stk.getFileName())}:${stk.getLineNumber()}`;
+export function lineNumber(level?: number) {
+    const e = new Error();
+
+    const parts = e.stack!.split("\n");
+    const line = parts[level ?? 0 + 2];
+    const location = line.match(/\(([^)]+)\)/g);
+    if (location === null) {
+        return "<unknown>";
+    }
+    const locationParts = location[0].slice(1, -1).split(":");
+    return `${path.basename(locationParts[0])}:${locationParts[1]}`;
 }
 
 interface LoggerOptions {
@@ -21,7 +32,7 @@ interface LoggerOptions {
 }
 
 export class Logger {
-    _logger: winston.Logger;
+    _logger: WinstonLogger;
 
     constructor(options: LoggerOptions) {
         this._logger = createLogger({
@@ -92,7 +103,7 @@ export class Logger {
 
             return a;
         });
-        return `${moment().format("YYYY-MM-DD HH:mm:ss")} ${lineNumber()} [${level.toUpperCase()}] (${process.pid}) ${transArgs.join(" ")}`;
+        return `${dayjs().format("YYYY-MM-DD HH:mm:ss")} ${lineNumber(4)} [${level.toUpperCase()}] (${process.pid}) ${transArgs.join(" ")}`;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

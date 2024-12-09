@@ -5,7 +5,7 @@
   "main": "app.js",
   "dependencies": {
     "@elastic/elasticsearch": "^7.17.12",
-    "callsite": "^1.0.0",
+    "dayjs": "^1.11.13",
     "koa": "^2.13.0",
     "koa-bodyparser": "^4.3.0",
     "koa-json": "^2.0.2",
@@ -13,7 +13,6 @@
     "koa-router": "^9.4.0",
     "koa-session": "^6.4.0",
     "koa-static": "^5.0.0",
-    "moment": "^2.29.4",
     "mysql2": "^3.11.5",
     "source-map-support": "^0.5.21",
     "uuid": "^11.0.3",
@@ -21,20 +20,17 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/callsite": "^1.0.34",
     "@types/koa-bodyparser": "^4.3.12",
     "@types/koa-json": "^2.0.23",
     "@types/koa-router": "^7.4.8",
     "@types/koa-session": "^6.4.5",
-    "@types/moment": "^2.11.29",
     "@types/node": "^20.8.7",
     "@typescript-eslint/eslint-plugin": "^6.8.0",
     "eslint": "^8.51.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.1",
     "prettier": "^3.0.3",
-    "ts-node": "^10.9.2",
-    "ts-proto": "^2.3.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.2.2"
   },
   "scripts": {
