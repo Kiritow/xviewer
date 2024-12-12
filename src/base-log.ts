@@ -51,8 +51,8 @@ function parseError(err: Error, skip: number) {
     }
 }
 
-function lineNumber(level: number) {
-    const stk = parseError(new Error(), level);
+function lineNumber(backtraceLevel: number) {
+    const stk = parseError(new Error(), backtraceLevel + 2);
     if (stk === undefined) {
         return "<unknown>";
     }
@@ -140,7 +140,7 @@ export class Logger {
 
             return a;
         });
-        return `${dayjs().format("YYYY-MM-DD HH:mm:ss")} ${lineNumber(4)} [${level.toUpperCase()}] (${process.pid}) ${transArgs.join(" ")}`;
+        return `${dayjs().format("YYYY-MM-DD HH:mm:ss")} ${lineNumber(2)} [${level.toUpperCase()}] (${process.pid}) ${transArgs.join(" ")}`;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
