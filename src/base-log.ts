@@ -9,26 +9,54 @@ import path from "path";
 
 const loggerMaps = new Map();
 
-export function lineNumber(level?: number) {
-    const e = new Error();
+const stackReg = /^(?:\s*)at (?:(.+) \()?(?:([^(]+?):(\d+):(\d+))\)?$/;
 
-    const parts = e.stack!.split("\n");
-    const line = parts[level ?? 0 + 2];
-    if (line === undefined) {
+function parseError(err: Error, skip: number) {
+    try {
+        const stacklines = err.stack?.split("\n").slice(skip);
+        if (!stacklines?.length) {
+            return undefined;
+        }
+
+        const lineMatch = stackReg.exec(stacklines[0]);
+        if (!lineMatch || lineMatch.length < 5) {
+            return undefined;
+        }
+
+        let className = "";
+        let functionName = "";
+        let functionAlias = "";
+        if (lineMatch[1] && lineMatch[1] !== "") {
+            [functionName, functionAlias] = lineMatch[1]
+                .replace(/[[\]]/g, "")
+                .split(" as ");
+            functionAlias = functionAlias || "";
+
+            if (functionName.includes(".")) {
+                [className, functionName] = functionName.split(".");
+            }
+        }
+
+        return {
+            className,
+            functionName,
+            functionAlias,
+            callerName: lineMatch[1] || "",
+            fileName: lineMatch[2],
+            lineNumber: parseInt(lineMatch[3], 10),
+            columnNumber: parseInt(lineMatch[4], 10),
+        };
+    } catch (e) {
+        return undefined;
+    }
+}
+
+function lineNumber(level: number) {
+    const stk = parseError(new Error(), level);
+    if (stk === undefined) {
         return "<unknown>";
     }
-
-    const location = line.match(/\s+at\s+(.*?):(\d+):(\d+)/);
-    if (location === null) {
-        return "<unknown>";
-    }
-
-    const filename = location[1];
-    const lineNumber = location[2];
-    if (filename.includes("(")) {
-        return `${path.basename(filename.substring(filename.indexOf("(") + 1))}:${lineNumber}`;
-    }
-    return `${path.basename(filename)}:${lineNumber}`;
+    return `${path.basename(stk.fileName)}:${stk.lineNumber}`;
 }
 
 interface LoggerOptions {
