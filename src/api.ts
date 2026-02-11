@@ -2,10 +2,14 @@ import koaRouter from "koa-router";
 import z from "zod";
 import { dao } from "./common";
 import getOrCreateLogger from "./base-log";
-import { ESSimpleSearch, GetHeatFromInfo } from "./utils";
+import {
+    ESSimpleSearch,
+    GetImageObjectUrl,
+    GetHeatFromInfo,
+    GetTranscodeObjectUrl,
+    GetVideoObjectUrl,
+} from "./utils";
 import { getCurrentUser } from "./session";
-
-const CDN_PREFIX = process.env.CDN_PREFIX;
 
 const router = new koaRouter({
     prefix: "/api",
@@ -65,22 +69,32 @@ router.get("/list", async (ctx) => {
         videoTranscodeTasks.map((row) => [row.id, row])
     );
 
-    const videoWithTranscode = videos.map((info) => {
-        const task = videoTranscodeTasksIndex.get(info.id);
-        const encodeName = task?.encname;
-        if (encodeName !== undefined && encodeName === "") {
-            return info;
-        }
+    const videoData = await Promise.all(
+        videos.map(async (info) => {
+            const task = videoTranscodeTasksIndex.get(info.id);
+            const encodeName = task?.encname;
 
-        return {
-            ...info,
-            transcode: encodeName,
-        };
-    });
+            const videoURL = await GetVideoObjectUrl(info.id);
+            const coverURL = await GetImageObjectUrl(info.coverid);
+            const transcodeURL = encodeName
+                ? await GetTranscodeObjectUrl(encodeName)
+                : undefined;
+
+            return {
+                ...info,
+                videoURL: videoURL ?? "",
+                coverURL: coverURL ?? "",
+                transcodeURL,
+                transcode:
+                    encodeName !== undefined && encodeName !== ""
+                        ? encodeName
+                        : undefined,
+            };
+        })
+    );
 
     ctx.body = {
-        videos: videoWithTranscode,
-        cdn: CDN_PREFIX,
+        videos: videoData,
     };
 });
 

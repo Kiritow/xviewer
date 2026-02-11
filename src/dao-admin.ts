@@ -1,12 +1,4 @@
-import crypto from "crypto";
 import { BaseDaoClass } from "./base-dao";
-import {
-    _objectSchema,
-    _videoObjectSchema,
-    _videoTranscodeSchema,
-    _videoWatchStatSchema,
-} from "./models";
-import { z } from "zod";
 
 export class AdminDaoClass extends BaseDaoClass {
     async addObject(id: string, filename: string, fsize: number, mtime: Date) {

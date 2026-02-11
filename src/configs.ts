@@ -1,35 +1,39 @@
-import assert from "assert";
+import fs from "node:fs";
+import z from "zod";
 
-function readEnv(name: string, defaultValue?: string): string {
-    const value = process.env[name];
-    if (value === undefined) {
-        if (defaultValue === undefined) {
-            throw new Error(`environment variable ${name} is not set`);
-        }
-        return defaultValue;
+const _configFileSchema = z.object({
+    koaAppKeys: z.array(z.string()),
+    es: z.object({
+        host: z.string(),
+        port: z.number(),
+        index: z.string(),
+    }),
+    mysql: z.object({
+        host: z.string(),
+        port: z.number(),
+        user: z.string(),
+        password: z.string(),
+        database: z.string(),
+    }),
+    rootDirs: z.array(
+        z.object({
+            path: z.string(),
+            urlPrefix: z.string(),
+        })
+    ),
+});
+
+type ConfigFileData = z.infer<typeof _configFileSchema>;
+
+let _cachedConfig: ConfigFileData | undefined = undefined;
+
+export function GetAppConfig() {
+    if (_cachedConfig !== undefined) {
+        return _cachedConfig;
     }
-    return value;
-}
 
-export function GetKoaAppKeys(): string[] {
-    const keys = readEnv("KOA_APP_KEYS");
-    return keys.split(",");
-}
-
-export function GetESIndex(): string {
-    return readEnv("ES_INDEX");
-}
-
-export function GetMySQLOptions() {
-    return {
-        host: readEnv("DB_HOST"),
-        port: parseInt(readEnv("DB_PORT", "3306"), 10),
-        user: readEnv("DB_USER"),
-        password: readEnv("DB_PASS"),
-        database: readEnv("DB_NAME"),
-    };
-}
-
-export function GetRootPath() {
-    return readEnv("ROOT_DIR");
+    _cachedConfig = _configFileSchema.parse(
+        JSON.parse(fs.readFileSync("config.json", "utf-8"))
+    );
+    return _cachedConfig;
 }

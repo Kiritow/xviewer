@@ -228,6 +228,7 @@ export class VideoManager {
                 ".wmv",
                 ".rmvb",
                 ".avi",
+                ".mkv",
             ];
             if (!allowedExts.includes(ext.toLowerCase())) {
                 console.log(`Skip non-video file ${fullpath}`);

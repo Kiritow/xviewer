@@ -61,6 +61,25 @@ export class DaoClass extends BaseDaoClass {
         return results.map((row) => _videoObjectSchema.parse(row));
     }
 
+    async searchVideoObjects(params: {
+        keyword?: string;
+        limit?: number;
+        offset?: number;
+        sortBy?: "mtime" | "createtime" | "fsize" | "videotime";
+        reverseOrder?: boolean;
+    }) {
+        const sqlParams: unknown[] = [];
+        let sql =
+            "select videos.id,coverid,filename,mtime,fsize,videotime,watchcount,vote,videos.createtime,videos.updatetime,tags from videos inner join objects on videos.id=objects.id";
+        if (params.keyword !== undefined) {
+            sql += " where filename like ?";
+            sqlParams.push(`%${params.keyword}%`);
+        }
+        sql += ` order by ${params.sortBy ?? "videos.id"} ${params.reverseOrder ? "desc" : "asc"}`;
+        const results = await this.query(sql, sqlParams);
+        return results.map((row) => _videoObjectSchema.parse(row));
+    }
+
     async getVideoWatchStat() {
         const results = await this.query(
             `

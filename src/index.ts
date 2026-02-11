@@ -10,15 +10,15 @@ import authRouter from "./auth-api";
 import adminRouter from "./admin-api";
 import { PreReadObjectList } from "./utils";
 import getOrCreateLogger from "./base-log";
-import { GetKoaAppKeys } from "./configs";
+import { GetAppConfig } from "./configs";
 
-const LISTEN_PORT = parseInt(process.env.LISTEN_PORT || "80", 10);
+const LISTEN_PORT = parseInt(process.env.LISTEN_PORT || "9889", 10);
 const XVIEWER_VERSION = JSON.parse(
     fs.readFileSync("package.json", "utf-8")
 ).version;
 
 const app = new koa();
-app.keys = GetKoaAppKeys();
+app.keys = GetAppConfig().koaAppKeys;
 app.use(
     koaSession(
         {
@@ -48,7 +48,13 @@ const logger = getOrCreateLogger("main", { level: "debug" });
 
     logger.info(`Backend version: ${XVIEWER_VERSION}`);
     logger.info("Object list pre-reading...");
-    await PreReadObjectList();
+    PreReadObjectList()
+        .then(() => {
+            logger.info("Object list pre-read done.");
+        })
+        .catch((err) => {
+            logger.error("Object list pre-read failed", err);
+        });
     logger.info("Starting web server...");
     app.listen(LISTEN_PORT);
     logger.info(

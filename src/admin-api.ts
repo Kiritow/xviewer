@@ -1,9 +1,7 @@
 import koaRouter from "koa-router";
 import z from "zod";
 import { dao, esClient } from "./common";
-import getOrCreateLogger from "./base-log";
-import { GetHeatFromInfo } from "./utils";
-import { GetESIndex, GetRootPath } from "./configs";
+import { GetAppConfig } from "./configs";
 import { getCurrentUser } from "./session";
 import { VideoManager } from "./video_manager";
 
@@ -23,20 +21,22 @@ router.post("/build_index", async (ctx) => {
 
     // TODO: add permission check
 
+    const indexName = GetAppConfig().es.index;
+
     const videos = await dao.getVideoObjects();
     try {
         await esClient.indices.delete({
-            index: GetESIndex(),
+            index: indexName,
         });
     } catch (e) {
         console.log(e);
-        console.log(`delete index ${GetESIndex()} failed, ignore`);
+        console.log(`delete index ${indexName} failed, ignore`);
     }
 
     try {
         await esClient.indices.create(
             {
-                index: GetESIndex(),
+                index: indexName,
             },
             {
                 ignore: [400],
@@ -44,7 +44,7 @@ router.post("/build_index", async (ctx) => {
         );
     } catch (e) {
         console.log(e);
-        console.log(`create index ${GetESIndex()} failed, ignore`);
+        console.log(`create index ${indexName} failed, ignore`);
     }
 
     const dataset = videos.map((v) => ({
@@ -52,13 +52,13 @@ router.post("/build_index", async (ctx) => {
         vid: v.id,
     }));
     const operations = dataset.flatMap((doc) => [
-        { index: { _index: GetESIndex() } },
+        { index: { _index: indexName } },
         doc,
     ]);
 
     await esClient.bulk({ refresh: true, body: operations });
 
-    const count = await esClient.count({ index: GetESIndex() });
+    const count = await esClient.count({ index: indexName });
     ctx.body = {
         message: `success, ${count.body.count} records inserted`,
     };
@@ -92,32 +92,35 @@ router.post("/rescan", async (ctx) => {
     rescanStatus.startTime = new Date();
     rescanStatus.lastError = "started.";
 
-    const rootPath = GetRootPath();
-
-    const manager = new VideoManager(
-        `${rootPath}/temp`,
-        `${rootPath}/objects`,
-        `${rootPath}/pending`
-    );
-
     const reporter = (message: string) => {
         console.log(message);
         rescanStatus.lastError = `${rescanStatus.lastError}\n${message}`;
     };
 
     (async () => {
-        try {
+        for (const rootPathConfig of GetAppConfig().rootDirs) {
+            const manager = new VideoManager(
+                `${rootPathConfig.path}/temp`,
+                `${rootPathConfig.path}/objects`,
+                `${rootPathConfig.path}/pending`
+            );
+
             await new Promise((resolve) => setTimeout(resolve, 3000));
+            reporter(`started scan for ${rootPathConfig.path}`);
             await manager.init();
             await manager.scan(reporter);
-            reporter("success");
-        } catch (e) {
-            reporter(e instanceof Error ? e.message : `${e}`);
-        } finally {
+            reporter(`finished scan for ${rootPathConfig.path}`);
+        }
+    })()
+        .catch((e) => {
+            reporter(
+                `Failed to rescan: ${e instanceof Error ? e.message : `${e}`}`
+            );
+        })
+        .finally(() => {
             rescanStatus.isRunning = false;
             rescanStatus.finishTime = new Date();
-        }
-    })();
+        });
 
     ctx.body = {
         message: `rescan started at ${rescanStatus.startTime}`,
