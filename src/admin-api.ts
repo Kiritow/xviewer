@@ -107,7 +107,6 @@ router.post("/rescan", async (ctx) => {
 
             await new Promise((resolve) => setTimeout(resolve, 3000));
             reporter(`started scan for ${rootPathConfig.path}`);
-            await manager.init();
             await manager.scan(reporter);
             reporter(`finished scan for ${rootPathConfig.path}`);
         }

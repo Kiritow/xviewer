@@ -139,9 +139,9 @@ const _objectPathCache = new Map<
     { rootPath: string; filePath: string; urlPrefix: string }
 >();
 
-async function getObjectPathWithCache(objID: string) {
+async function getObjectPathWithCache(objID: string, forceRead?: boolean) {
     let objectPath = _objectPathCache.get(objID);
-    if (objectPath !== undefined) {
+    if (objectPath !== undefined && !forceRead) {
         return objectPath;
     }
 
@@ -153,13 +153,13 @@ async function getObjectPathWithCache(objID: string) {
     return objectPath;
 }
 
-export async function PreReadObjectList() {
+async function preReadObjectList() {
     const objList = await dao.getAllObjectID();
     console.log(`${objList.length} objects loaded from db`);
 
     let cntFailed = 0;
     for (let i = 0; i < objList.length; ++i) {
-        const objPath = await getObjectPathWithCache(objList[i]);
+        const objPath = await getObjectPathWithCache(objList[i], true);
         if (objPath === undefined) {
             ++cntFailed;
             logger.info(`[WARN] object ${objList[i]} not found on disk`);
@@ -173,6 +173,24 @@ export async function PreReadObjectList() {
     logger.warn(
         `${objList.length} objects checked. ${cntFailed} objects not found.`
     );
+}
+
+export function StartObjectPreReadTask() {
+    const task = async () => {
+        try {
+            await preReadObjectList();
+            logger.info(`Object list pre-read task finished.`);
+        } catch (err) {
+            console.error(err);
+            logger.error(
+                `object pre-read task failed: ${err instanceof Error ? err.message : err}`
+            );
+        }
+
+        setTimeout(task, 1000 * 60 * 60); // run every hour
+    };
+
+    task();
 }
 
 export async function GetVideoObjectUrl(objID: string) {

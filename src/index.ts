@@ -8,7 +8,7 @@ import { NewAsyncRootMW } from "./mws";
 import apiRouter from "./api";
 import authRouter from "./auth-api";
 import adminRouter from "./admin-api";
-import { PreReadObjectList } from "./utils";
+import { StartObjectPreReadTask } from "./utils";
 import getOrCreateLogger from "./base-log";
 import { GetAppConfig } from "./configs";
 
@@ -48,13 +48,8 @@ const logger = getOrCreateLogger("main", { level: "debug" });
 
     logger.info(`Backend version: ${XVIEWER_VERSION}`);
     logger.info("Object list pre-reading...");
-    PreReadObjectList()
-        .then(() => {
-            logger.info("Object list pre-read done.");
-        })
-        .catch((err) => {
-            logger.error("Object list pre-read failed", err);
-        });
+    StartObjectPreReadTask();
+
     logger.info("Starting web server...");
     app.listen(LISTEN_PORT);
     logger.info(

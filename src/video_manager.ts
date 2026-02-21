@@ -6,7 +6,7 @@ import fs from "fs";
 import { dao, adminDao } from "./common";
 import { ObjectInfo } from "./models";
 
-function RunCommand(command: string, args?: string[]): Promise<string> {
+function RunCommand(command: string, args?: string[]) {
     let stdout = "";
 
     const child = spawn(command, args);
@@ -21,14 +21,21 @@ function RunCommand(command: string, args?: string[]): Promise<string> {
         console.error(data instanceof Buffer ? data.toString() : data);
     });
 
-    return new Promise((resolve, reject) => {
-        child.on("close", (code) => {
-            if (code !== 0) {
+    return new Promise<string>((resolve, reject) => {
+        child.on("close", (code, signal) => {
+            if (code !== null) {
+                if (code === 0) {
+                    return resolve(stdout);
+                }
+
                 return reject(
                     new Error(`Command ${command} failed with code: ${code}`)
                 );
             }
-            return resolve(stdout);
+
+            return reject(
+                new Error(`Command ${command} failed with signal: ${signal}`)
+            );
         });
     });
 }
@@ -51,7 +58,9 @@ async function GenerateCover(
         "00:00:05.000",
         "-i",
         videoFullpath,
-        "-vframes",
+        "-update",
+        "true",
+        "-frames:v",
         "1",
         coverPath,
     ]);
@@ -102,7 +111,7 @@ export class VideoManager {
         this.pendingDir = pendingDir;
     }
 
-    async init() {
+    async _loadObjectMap() {
         this.objectMap.clear();
         const objs = await dao.getObjects();
         objs.forEach((obj) => {
@@ -143,7 +152,7 @@ export class VideoManager {
         let coverPath: string | undefined = undefined;
         let isNewCover = false;
         if (detectCover) {
-            const useExts = coverExts || ["png", "jpg", ".jpeg"];
+            const useExts = coverExts ?? ["png", "jpg", ".jpeg"];
             for (const ext of useExts) {
                 const possibleCoverPath = `${videoDirectory}/${videonameWithoutExt}.${ext}`;
                 if (fs.existsSync(possibleCoverPath)) {
@@ -251,14 +260,21 @@ export class VideoManager {
         reportProgress(results.map((r) => r.name).join("\n"));
 
         for (const { name, tags } of results) {
+            await this._loadObjectMap();
+
             reportProgress(`Processing ${name}`);
             try {
-                await this.init();
-                await this.addVideo(name, tags, true);
-                reportProgress(`Completed ${name}`);
+                const isNewVideo = await this.addVideo(name, tags, true);
+                if (isNewVideo) {
+                    reportProgress(`[New] ${name}`);
+                } else {
+                    reportProgress(`[Exist] ${name}`);
+                }
             } catch (e) {
                 console.log(e);
-                reportProgress(`Failed to process ${name}`);
+                reportProgress(
+                    `[Failed] ${name}: ${e instanceof Error ? e.message : `${e}`}`
+                );
             }
         }
     }
