@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { dao, adminDao } from "./common";
 import { ObjectInfo } from "./models";
+import { getObjectPath } from "./utils";
 
 function RunCommand(command: string, args?: string[]) {
     let stdout = "";
@@ -65,6 +66,29 @@ async function GenerateCover(
         coverPath,
     ]);
 
+    try {
+        await fs.promises.access(coverPath, fs.constants.F_OK);
+        return coverPath;
+    } catch (err) {
+        console.error(err);
+        console.error(
+            `coverPath: ${coverPath} does not exist, ffmpeg might have failed. try using the first frame as cover.`
+        );
+    }
+
+    await RunCommand("ffmpeg", [
+        "-ss",
+        "00:00:00.000",
+        "-i",
+        videoFullpath,
+        "-update",
+        "true",
+        "-frames:v",
+        "1",
+        coverPath,
+    ]);
+
+    await fs.promises.access(coverPath, fs.constants.F_OK);
     return coverPath;
 }
 
@@ -143,9 +167,17 @@ export class VideoManager {
         if (this.objectMap.has(videoHash)) {
             const currentObj = this.objectMap.get(videoHash);
             assert(currentObj !== undefined);
-            console.log(
-                `Video ${videoFilename} already exists. Record name: ${currentObj.filename} hash: ${videoHash}`
-            );
+            const objectPathInfo = await getObjectPath(currentObj.id);
+            if (objectPathInfo !== undefined) {
+                console.log(
+                    `Video ${videoFilename} already exists. Record name: ${currentObj.filename} hash: ${videoHash}`
+                );
+            } else {
+                console.log(`
+                    Video ${videoFilename} already exists but file is missing. Record name: ${currentObj.filename} hash: ${videoHash}
+                `);
+                await this.renameObject(videoFilename, videoHash);
+            }
             return false;
         }
 
@@ -259,6 +291,10 @@ export class VideoManager {
         reportProgress(`Found ${results.length} videos`);
         reportProgress(results.map((r) => r.name).join("\n"));
 
+        let cntNew = 0;
+        let cntExist = 0;
+        let cntFailed = 0;
+
         for (const { name, tags } of results) {
             await this._loadObjectMap();
 
@@ -267,15 +303,22 @@ export class VideoManager {
                 const isNewVideo = await this.addVideo(name, tags, true);
                 if (isNewVideo) {
                     reportProgress(`[New] ${name}`);
+                    cntNew += 1;
                 } else {
                     reportProgress(`[Exist] ${name}`);
+                    cntExist += 1;
                 }
             } catch (e) {
                 console.log(e);
                 reportProgress(
                     `[Failed] ${name}: ${e instanceof Error ? e.message : `${e}`}`
                 );
+                cntFailed += 1;
             }
         }
+
+        reportProgress(
+            `Scan finished. New: ${cntNew}, Exist: ${cntExist}, Failed: ${cntFailed}`
+        );
     }
 }

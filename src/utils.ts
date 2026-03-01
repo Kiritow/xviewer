@@ -91,7 +91,7 @@ export function isTrue(val: string | number | boolean): boolean {
     }
 }
 
-async function getObjectPath(objID: string) {
+export async function getObjectPath(objID: string) {
     for (const rootDirConfig of GetAppConfig().rootDirs) {
         const prefix = objID.substring(0, 2);
         const resourcePath = `${prefix}/${objID}`;
